@@ -11,9 +11,9 @@ import { initialApps, initialBadges, initialNotification } from './utils/mockDat
 const SecurityToolkit = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [apps, setApps] = useState(initialApps);
+  const [apps] = useState(initialApps);
   const [securityScore, setSecurityScore] = useState(72);
-  const [streak, setStreak] = useState(5);
+  const [streak] = useState(5);
   const [badges, setBadges] = useState(initialBadges);
   const [analyzing, setAnalyzing] = useState(false);
   const [anomalyDetected, setAnomalyDetected] = useState(false);

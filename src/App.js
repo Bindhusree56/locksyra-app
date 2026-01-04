@@ -6,6 +6,7 @@ import AppMonitor from './components/monitoring/AppMonitor';
 import Notifications from './components/monitoring/Notifications';
 import { Header, BottomNav, SecurityTip } from './components/layout/LayoutComponents';
 import BehaviorAnalyzer, { authenticateBiometric } from './components/analysis/BehaviorAnalyzer';
+import BreachMonitor from './components/breach/BreachMonitor';
 import { initialApps, initialBadges, initialNotification } from './utils/mockData';
 
 const SecurityToolkit = () => {
@@ -151,6 +152,11 @@ Keep it encouraging and student-friendly! 🎓`
         notifications={notifications}
       />
     );
+  }
+
+  // Render different screens based on currentScreen state
+  if (currentScreen === 'breach') {
+    return <BreachMonitor />;
   }
 
   return (

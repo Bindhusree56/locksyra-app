@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Lock, Brain, TrendingUp, Star } from 'lucide-react';
+import { Shield, Lock, Brain, TrendingUp, Star, Mail } from 'lucide-react';
 
 export const Header = ({ onLogout }) => {
   return (
@@ -27,7 +27,7 @@ export const BottomNav = ({ currentScreen, onScreenChange }) => {
   const navItems = [
     { id: 'dashboard', icon: Shield, label: 'Dashboard' },
     { id: 'analysis', icon: Brain, label: 'AI Analysis' },
-    { id: 'lock', icon: Lock, label: 'App Lock' },
+    { id: 'breach', icon: Mail, label: 'Breach Check' },
     { id: 'stats', icon: TrendingUp, label: 'Stats' }
   ];
 

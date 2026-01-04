@@ -105,7 +105,7 @@ const BreachMonitor = () => {
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 pb-32">
       <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-6 rounded-3xl shadow-lg mb-6 sticky top-4 z-10">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between">

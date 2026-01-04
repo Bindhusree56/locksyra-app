@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Key, Eye, EyeOff } from 'lucide-react';
-import { analyzePasswordStrength } from '../../utils/breachUtils';
+import { Key, Eye, EyeOff, AlertTriangle, CheckCircle, Loader } from 'lucide-react';
+import { analyzePasswordStrength, checkPasswordBreach } from '../../utils/breachUtils';
 
 const PasswordStrengthMeter = ({ password, onBadgeEarned }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [breachStatus, setBreachStatus] = useState(null);
+  const [checkingBreach, setCheckingBreach] = useState(false);
   const strength = analyzePasswordStrength(password);
   
   useEffect(() => {
@@ -11,6 +13,28 @@ const PasswordStrengthMeter = ({ password, onBadgeEarned }) => {
       onBadgeEarned('🔐 Password Master');
     }
   }, [strength.score, password, onBadgeEarned]);
+  
+  // Check password against breach database (FREE API!)
+  useEffect(() => {
+    let timeout;
+    if (password && password.length >= 4) {
+      setCheckingBreach(true);
+      // Debounce to avoid too many API calls
+      timeout = setTimeout(async () => {
+        const result = await checkPasswordBreach(password);
+        setBreachStatus(result);
+        setCheckingBreach(false);
+        
+        if (!result.breached && strength.score >= 80) {
+          onBadgeEarned('🛡️ Breach-Free Pro');
+        }
+      }, 1000);
+    } else {
+      setBreachStatus(null);
+    }
+    
+    return () => clearTimeout(timeout);
+  }, [password]);
   
   const getStrengthColor = () => {
     switch(strength.level) {
@@ -37,6 +61,9 @@ const PasswordStrengthMeter = ({ password, onBadgeEarned }) => {
       <div className="flex items-center gap-3 mb-4">
         <Key className="w-6 h-6 text-purple-500" />
         <h2 className="text-xl font-bold text-gray-800">Password Strength Analyzer</h2>
+        <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+          FREE API ✅
+        </span>
       </div>
       
       <div className="relative mb-4">
@@ -57,6 +84,7 @@ const PasswordStrengthMeter = ({ password, onBadgeEarned }) => {
       
       {password && (
         <>
+          {/* Strength Analysis */}
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-600">Strength: {strength.score}/100</span>
@@ -70,6 +98,47 @@ const PasswordStrengthMeter = ({ password, onBadgeEarned }) => {
             </div>
           </div>
           
+          {/* Breach Status (FREE API Check) */}
+          <div className="mb-4">
+            {checkingBreach ? (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex items-center gap-3">
+                <Loader className="w-5 h-5 text-blue-600 animate-spin" />
+                <div>
+                  <h3 className="font-bold text-blue-800 text-sm">Checking Breach Database...</h3>
+                  <p className="text-xs text-blue-600">Using FREE HaveIBeenPwned API</p>
+                </div>
+              </div>
+            ) : breachStatus && (
+              <div className={`rounded-2xl p-4 border-2 flex items-start gap-3 ${
+                breachStatus.breached 
+                  ? 'bg-red-50 border-red-200' 
+                  : 'bg-green-50 border-green-200'
+              }`}>
+                {breachStatus.breached ? (
+                  <>
+                    <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-bold text-red-800 text-sm">🚨 Password Compromised!</h3>
+                      <p className="text-xs text-red-600 mt-1">{breachStatus.message}</p>
+                      <p className="text-xs text-red-500 mt-2">
+                        ⚠️ This password should NEVER be used. Hackers have it in their databases!
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-bold text-green-800 text-sm">✅ Password Secure!</h3>
+                      <p className="text-xs text-green-600 mt-1">{breachStatus.message}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Improvement Suggestions */}
           {strength.feedback.length > 0 && (
             <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4">
               <h3 className="font-bold text-yellow-800 text-sm mb-2">💡 Suggestions to Improve:</h3>
@@ -84,6 +153,13 @@ const PasswordStrengthMeter = ({ password, onBadgeEarned }) => {
             </div>
           )}
         </>
+      )}
+      
+      {!password && (
+        <div className="text-center py-6 text-gray-400">
+          <p className="text-sm">Type a password above to see real-time analysis</p>
+          <p className="text-xs mt-2">✅ 100% FREE breach checking • Privacy protected • No storage</p>
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Mail, Search, CheckCircle, XCircle, RefreshCw, Download, Database, Zap } from 'lucide-react';
+import { Mail, Search, CheckCircle, XCircle, RefreshCw, Download, Database, Zap } from 'lucide-react';
 import { checkBreaches } from '../../utils/breachUtils';
 import PasswordStrengthMeter from './PasswordStrengthMeter';
 import BreachCard from './BreachCard';
@@ -105,26 +105,7 @@ const BreachMonitor = () => {
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 pb-32">
-      <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-6 rounded-3xl shadow-lg mb-6 sticky top-4 z-10">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <Shield className="w-8 h-8 text-white" />
-                <h1 className="text-3xl font-bold text-white">SecureU</h1>
-              </div>
-              <p className="text-purple-100 text-sm">Breach Monitor & Password Analyzer</p>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-white">{securityScore}</div>
-              <div className="text-xs text-purple-100">Security Score</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto p-4 space-y-6 mt-6">
         <div className="bg-white/80 backdrop-blur rounded-3xl p-6 shadow-lg border-2 border-blue-200">
           <div className="flex items-center gap-3 mb-4">
             <span className="text-2xl">🏆</span>
@@ -300,7 +281,6 @@ const BreachMonitor = () => {
           </div>
         </div>
       </div>
-    </div>
   );
 };
 

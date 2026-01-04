@@ -154,36 +154,67 @@ Keep it encouraging and student-friendly! 🎓`
     );
   }
 
-  // Render different screens based on currentScreen state
-  if (currentScreen === 'breach') {
-    return <BreachMonitor />;
-  }
+  // Render content based on screen, but ALWAYS show Header and BottomNav
+  const renderContent = () => {
+    switch (currentScreen) {
+      case 'breach':
+        return <BreachMonitor />;
+      
+      case 'analysis':
+        return (
+          <div className="max-w-6xl mx-auto p-4 space-y-6 mt-6">
+            <AIAnalysis 
+              analyzing={analyzing}
+              anomalyDetected={anomalyDetected}
+              aiInsight={aiInsight}
+              onAnalyze={analyzeWithAI}
+            />
+          </div>
+        );
+      
+      case 'stats':
+        return (
+          <div className="max-w-6xl mx-auto p-4 space-y-6 mt-6">
+            <div className="bg-white/80 backdrop-blur rounded-3xl p-8 shadow-lg border-2 border-purple-200 text-center">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">📊 Stats Coming Soon!</h2>
+              <p className="text-gray-600">Detailed analytics and security trends will be available here.</p>
+            </div>
+          </div>
+        );
+      
+      default: // dashboard
+        return (
+          <div className="max-w-6xl mx-auto p-4 space-y-6 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <SecurityScore score={securityScore} />
+              <DailyStreak streak={streak} />
+              <BadgeDisplay badges={badges} />
+            </div>
+
+            <Notifications notifications={notifications} />
+
+            <AIAnalysis 
+              analyzing={analyzing}
+              anomalyDetected={anomalyDetected}
+              aiInsight={aiInsight}
+              onAnalyze={analyzeWithAI}
+            />
+
+            <AppMonitor apps={apps} />
+
+            <SecurityTip />
+          </div>
+        );
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 pb-24">
       <Header onLogout={() => setIsAuthenticated(false)} />
+      
+      {renderContent()}
 
-      <div className="max-w-6xl mx-auto p-4 space-y-6 mt-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <SecurityScore score={securityScore} />
-          <DailyStreak streak={streak} />
-          <BadgeDisplay badges={badges} />
-        </div>
-
-        <Notifications notifications={notifications} />
-
-        <AIAnalysis 
-          analyzing={analyzing}
-          anomalyDetected={anomalyDetected}
-          aiInsight={aiInsight}
-          onAnalyze={analyzeWithAI}
-        />
-
-        <AppMonitor apps={apps} />
-
-        <SecurityTip />
-      </div>
-
+      {/* ALWAYS RENDER BOTTOM NAV - This is the fix! */}
       <BottomNav 
         currentScreen={currentScreen}
         onScreenChange={setCurrentScreen}

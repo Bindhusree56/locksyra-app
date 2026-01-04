@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 const BreachCard = ({ breach, onAction }) => {
-  const [expanded, setExpanded] = useState(false);
   
   const getSeverityColor = () => {
     switch(breach.severity) {

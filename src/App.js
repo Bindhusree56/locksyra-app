@@ -9,6 +9,15 @@ import BehaviorAnalyzer, { authenticateBiometric } from './components/analysis/B
 import BreachMonitor from './components/breach/BreachMonitor';
 import { initialApps, initialBadges, initialNotification } from './utils/mockData';
 
+// PART 3 IMPORTS
+import AppLockingSystem from './components/locking/AppLockingSystem';
+import HabitTracker from './components/habits/HabitTracker';
+import SecurityProfile from './components/profile/SecurityProfile';
+import GamificationHub from './components/gamification/GamificationHub';
+import SettingsPanel from './components/settings/SettingsPanel';
+import EducationCenter from './components/education/EducationCenter';
+import { Shield, Lock, Flame, Award, Trophy, BookOpen, Settings, Home } from 'lucide-react';
+
 const SecurityToolkit = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -22,6 +31,32 @@ const SecurityToolkit = () => {
   const [notifications, setNotifications] = useState([]);
   const [behaviorAnalyzer] = useState(new BehaviorAnalyzer());
   const [currentScreen, setCurrentScreen] = useState('dashboard');
+  
+  // PART 3 STATE
+  const [lockedApps, setLockedApps] = useState({});
+  const [user] = useState({
+    name: 'Student User',
+    email: 'student@university.edu',
+    level: 11,
+    score: 85,
+    streak: 7,
+    badges: 12,
+    scansCompleted: 34
+  });
+  const [settings, setSettings] = useState({
+    securityAlerts: true,
+    dailyReminders: true,
+    breachNotifs: true,
+    theme: 'purple',
+    securityLevel: 'balanced',
+    scanFrequency: 'daily'
+  });
+  const [userPoints] = useState(1050);
+  const [challenges] = useState([
+    { title: 'Lock 5 Apps', description: 'Secure your most used apps', progress: 80, points: 50, icon: '🔒' },
+    { title: 'Weekly Breach Check', description: 'Check for breaches 7 days in a row', progress: 60, points: 100, icon: '🔍' },
+    { title: 'Password Perfectionist', description: 'Update 3 weak passwords', progress: 33, points: 75, icon: '🔐' }
+  ]);
 
   // Behavior monitoring effect
   useEffect(() => {
@@ -144,6 +179,23 @@ Keep it encouraging and student-friendly! 🎓`
     setAnalyzing(false);
   };
 
+  // PART 3 HANDLERS
+  const handleAppLockToggle = (appId) => {
+    setLockedApps(prev => ({...prev, [appId]: !prev[appId]}));
+  };
+
+  const handleUnlockApp = (appId) => {
+    setLockedApps(prev => ({...prev, [appId]: false}));
+  };
+
+  const handleHabitComplete = (habitId) => {
+    console.log('Habit completed:', habitId);
+  };
+
+  const handleSettingChange = (key, value) => {
+    setSettings(prev => ({...prev, [key]: value}));
+  };
+
   if (!isAuthenticated) {
     return (
       <BiometricAuth 
@@ -154,7 +206,7 @@ Keep it encouraging and student-friendly! 🎓`
     );
   }
 
-  // Render content based on screen, but ALWAYS show Header and BottomNav
+  // Render content based on screen
   const renderContent = () => {
     switch (currentScreen) {
       case 'breach':
@@ -182,6 +234,25 @@ Keep it encouraging and student-friendly! 🎓`
           </div>
         );
       
+      // PART 3 SCREENS
+      case 'locks':
+        return <AppLockingSystem apps={apps} onAppLockToggle={handleAppLockToggle} onUnlockApp={handleUnlockApp} lockedApps={lockedApps} />;
+      
+      case 'habits':
+        return <HabitTracker habits={[]} onHabitComplete={handleHabitComplete} streak={user.streak} />;
+      
+      case 'profile':
+        return <SecurityProfile user={user} />;
+      
+      case 'games':
+        return <GamificationHub userLevel={user.level} userPoints={userPoints} challenges={challenges} />;
+      
+      case 'learn':
+        return <EducationCenter />;
+      
+      case 'settingsPanel':
+        return <SettingsPanel settings={settings} onSettingChange={handleSettingChange} />;
+      
       default: // dashboard
         return (
           <div className="max-w-6xl mx-auto p-4 space-y-6 mt-6">
@@ -208,17 +279,48 @@ Keep it encouraging and student-friendly! 🎓`
     }
   };
 
+  // Extended bottom nav with Part 3 items
+  const navItems = [
+    { id: 'dashboard', icon: Home, label: 'Home' },
+    { id: 'locks', icon: Lock, label: 'Locks' },
+    { id: 'habits', icon: Flame, label: 'Habits' },
+    { id: 'profile', icon: Award, label: 'Profile' },
+    { id: 'games', icon: Trophy, label: 'Games' },
+    { id: 'learn', icon: BookOpen, label: 'Learn' },
+    { id: 'settingsPanel', icon: Settings, label: 'Settings' }
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 pb-24">
       <Header onLogout={() => setIsAuthenticated(false)} />
       
       {renderContent()}
 
-      {/* ALWAYS RENDER BOTTOM NAV - This is the fix! */}
-      <BottomNav 
-        currentScreen={currentScreen}
-        onScreenChange={setCurrentScreen}
-      />
+      {/* Extended Bottom Nav */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur border-t-2 border-purple-200 shadow-lg">
+        <div className="max-w-6xl mx-auto px-2 py-3">
+          <div className="flex items-center justify-around">
+            {navItems.map(item => {
+              const Icon = item.icon;
+              const isActive = currentScreen === item.id;
+              return (
+                <button 
+                  key={item.id}
+                  onClick={() => setCurrentScreen(item.id)} 
+                  className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all ${
+                    isActive 
+                      ? 'bg-purple-100 text-purple-600' 
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-xs font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

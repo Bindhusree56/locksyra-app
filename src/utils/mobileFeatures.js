@@ -1,232 +1,121 @@
-import { Capacitor } from '@capacitor/core';
-
-/**
- * Check if running as a native mobile app
- */
-export const isNativeApp = () => {
-  return Capacitor.isNativePlatform();
-};
-
-/**
- * Setup status bar styling for mobile
- */
-export const setupStatusBar = async () => {
-  if (!isNativeApp()) return;
-  
-  try {
-    const { StatusBar } = await import('@capacitor/status-bar');
-    
-    await StatusBar.setStyle({ style: 'Dark' });
-    await StatusBar.setBackgroundColor({ color: '#8B5CF6' });
-  } catch (error) {
-    console.log('StatusBar not available:', error);
-  }
-};
-
-/**
- * Hide splash screen
- */
-export const hideSplashScreen = async () => {
-  if (!isNativeApp()) return;
-  
-  try {
-    const { SplashScreen } = await import('@capacitor/splash-screen');
-    
-    await SplashScreen.hide();
-  } catch (error) {
-    console.log('SplashScreen not available:', error);
-  }
-};
-
-/**
- * Setup back button handler for Android
- */
-export const setupBackButton = (callback) => {
-  if (!isNativeApp()) return;
-  
-  try {
-    import('@capacitor/app').then(({ App }) => {
-      App.addListener('backButton', ({ canGoBack }) => {
-        callback(canGoBack);
-      });
-    });
-  } catch (error) {
-    console.log('App plugin not available:', error);
-  }
-};
-
-/**
- * Trigger haptic feedback
- * @param {string} type - 'light', 'medium', 'heavy'
- */
-export const triggerHaptic = async (type = 'light') => {
-  if (!isNativeApp()) return;
-  
-  try {
-    const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
-    
-    const styleMap = {
-      light: ImpactStyle.Light,
-      medium: ImpactStyle.Medium,
-      heavy: ImpactStyle.Heavy
-    };
-    
-    await Haptics.impact({ style: styleMap[type] || ImpactStyle.Light });
-  } catch (error) {
-    console.log('Haptics not available:', error);
-  }
-};
-
-/**
- * Show keyboard
- */
-export const showKeyboard = async () => {
-  if (!isNativeApp()) return;
-  
-  try {
-    const { Keyboard } = await import('@capacitor/keyboard');
-    await Keyboard.show();
-  } catch (error) {
-    console.log('Keyboard plugin not available:', error);
-  }
-};
-
-/**
- * Hide keyboard
- */
-export const hideKeyboard = async () => {
-  if (!isNativeApp()) return;
-  
-  try {
-    const { Keyboard } = await import('@capacitor/keyboard');
-    await Keyboard.hide();
-  } catch (error) {
-    console.log('Keyboard plugin not available:', error);
-  }
-};
-
-/**
- * Get device info
- */
-export const getDeviceInfo = async () => {
-  if (!isNativeApp()) {
+const MobileFeatures = {
+  // Device Info (web version)
+  getDeviceInfo: async () => {
     return {
       platform: 'web',
-      model: 'browser',
-      manufacturer: 'N/A'
+      model: 'Browser',
+      manufacturer: navigator.vendor || 'Unknown',
+      osVersion: navigator.userAgent,
+      isVirtual: false
     };
-  }
-  
-  try {
-    const { Device } = await import('@capacitor/device');
-    const info = await Device.getInfo();
-    return info;
-  } catch (error) {
-    console.log('Device info not available:', error);
-    return null;
-  }
-};
+  },
 
-/**
- * Check network status
- */
-export const getNetworkStatus = async () => {
-  if (!isNativeApp()) {
-    return { connected: navigator.onLine };
-  }
-  
-  try {
-    const { Network } = await import('@capacitor/network');
-    const status = await Network.getStatus();
-    return status;
-  } catch (error) {
-    console.log('Network plugin not available:', error);
-    return { connected: navigator.onLine };
-  }
-};
+  // Network Status (web version)
+  getNetworkStatus: () => {
+    return {
+      connected: navigator.onLine,
+      connectionType: navigator.connection?.effectiveType || 'unknown'
+    };
+  },
 
-/**
- * Share content (native share sheet)
- */
-export const shareContent = async (title, text, url) => {
-  if (!isNativeApp()) {
-    // Fallback to Web Share API
+  // Share API (web version)
+  share: async (options) => {
     if (navigator.share) {
       try {
-        await navigator.share({ title, text, url });
-        return true;
+        await navigator.share({
+          title: options.title,
+          text: options.text,
+          url: options.url
+        });
+        return { success: true };
       } catch (error) {
-        console.log('Share failed:', error);
-        return false;
+        console.log('Share cancelled or failed:', error);
+        return { success: false, error: error.message };
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(options.url || options.text);
+        alert('Link copied to clipboard!');
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: 'Share not supported' };
       }
     }
-    return false;
-  }
-  
-  try {
-    const { Share } = await import('@capacitor/share');
-    await Share.share({
-      title,
-      text,
-      url,
-      dialogTitle: 'Share with'
-    });
-    return true;
-  } catch (error) {
-    console.log('Share plugin not available:', error);
-    return false;
-  }
-};
+  },
 
-/**
- * Open URL in system browser
- */
-export const openUrl = async (url) => {
-  if (!isNativeApp()) {
-    window.open(url, '_blank');
-    return;
-  }
-  
-  try {
-    const { Browser } = await import('@capacitor/browser');
-    await Browser.open({ url });
-  } catch (error) {
-    window.open(url, '_blank');
-  }
-};
+  // Open URL in browser
+  openUrl: async (url) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return { success: true };
+  },
 
-/**
- * Request notification permission
- */
-export const requestNotificationPermission = async () => {
-  if (!isNativeApp()) {
-    if ('Notification' in window) {
-      return await Notification.requestPermission();
+  // Push notifications (web version - requires service worker)
+  requestNotificationPermission: async () => {
+    if (!('Notification' in window)) {
+      return { granted: false, error: 'Notifications not supported' };
     }
-    return 'denied';
-  }
-  
-  try {
-    const { PushNotifications } = await import('@capacitor/push-notifications');
-    const result = await PushNotifications.requestPermissions();
-    return result.receive;
-  } catch (error) {
-    console.log('Notifications not available:', error);
-    return 'denied';
+
+    try {
+      const permission = await Notification.requestPermission();
+      return { granted: permission === 'granted' };
+    } catch (error) {
+      return { granted: false, error: error.message };
+    }
+  },
+
+  // Show local notification
+  showNotification: (title, options = {}) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, {
+        body: options.body || '',
+        icon: options.icon || '/logo192.png',
+        badge: options.badge || '/logo192.png'
+      });
+      return { success: true };
+    }
+    return { success: false, error: 'Notification permission not granted' };
+  },
+
+  // Vibrate device (web version)
+  vibrate: (duration = 200) => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(duration);
+      return { success: true };
+    }
+    return { success: false, error: 'Vibration not supported' };
+  },
+
+  // Get battery status
+  getBatteryStatus: async () => {
+    if ('getBattery' in navigator) {
+      try {
+        const battery = await navigator.getBattery();
+        return {
+          level: battery.level,
+          charging: battery.charging
+        };
+      } catch (error) {
+        return { error: 'Battery API not available' };
+      }
+    }
+    return { error: 'Battery API not supported' };
+  },
+
+  // Check if running as PWA
+  isPWA: () => {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           window.navigator.standalone === true;
+  },
+
+  // Install PWA prompt
+  installPWA: (deferredPrompt) => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      return deferredPrompt.userChoice;
+    }
+    return Promise.resolve({ outcome: 'dismissed' });
   }
 };
 
-export default {
-  isNativeApp,
-  setupStatusBar,
-  hideSplashScreen,
-  setupBackButton,
-  triggerHaptic,
-  showKeyboard,
-  hideKeyboard,
-  getDeviceInfo,
-  getNetworkStatus,
-  shareContent,
-  openUrl,
-  requestNotificationPermission
-};
+export default MobileFeatures;

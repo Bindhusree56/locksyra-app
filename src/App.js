@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import BiometricAuth from './components/auth/BiometricAuth';
 import { SecurityScore, DailyStreak, BadgeDisplay } from './components/dashboard/DashboardCards';
 import AIAnalysis from './components/analysis/AIAnalysis';
@@ -7,7 +7,16 @@ import { Header, SecurityTip } from './components/layout/LayoutComponents';
 import BreachMonitor from './components/breach/BreachMonitor';
 import { initialBadges } from './utils/mockData';
 
-// NEW REAL FEATURES
+// NEW IMPORTS FOR MOBILE
+import { 
+  isNativeApp, 
+  setupStatusBar, 
+  hideSplashScreen, 
+  setupBackButton,
+  triggerHaptic 
+} from './utils/mobileFeatures';
+
+// EXISTING IMPORTS
 import PhishingDetector from './components/security/PhishingDetector';
 import SecurityNewsFeed from './components/security/SecurityNewsFeed';
 import PasswordManager from './components/security/PasswordManager';
@@ -26,6 +35,7 @@ const SecurityToolkit = () => {
   const [aiInsight, setAiInsight] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [currentScreen, setCurrentScreen] = useState('dashboard');
+  const [isMobile, setIsMobile] = useState(false);
   
   const [settings, setSettings] = useState({
     securityAlerts: true,
@@ -36,13 +46,43 @@ const SecurityToolkit = () => {
     scanFrequency: 'daily'
   });
 
+  // MOBILE SETUP
+  useEffect(() => {
+    const initMobile = async () => {
+      const native = isNativeApp();
+      setIsMobile(native);
+      
+      if (native) {
+        await setupStatusBar();
+        await hideSplashScreen();
+        
+        // Handle Android back button
+        setupBackButton((canGoBack) => {
+          if (currentScreen !== 'dashboard') {
+            setCurrentScreen('dashboard');
+          } else if (!canGoBack) {
+            // Show exit confirmation
+            if (window.confirm('Exit SecureU?')) {
+              const { App } = require('@capacitor/app');
+              App.exitApp();
+            }
+          }
+        });
+      }
+    };
+    
+    initMobile();
+  }, [currentScreen]);
+
   const analyzeWithAI = async () => {
+    // Add haptic feedback for mobile
+    await triggerHaptic('medium');
+    
     setAnalyzing(true);
     setAnomalyDetected(false);
     
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Get user's email for personalized analysis
     const userEmail = localStorage.getItem('userEmail') || 'user@university.edu';
     
     try {
@@ -76,6 +116,9 @@ Give practical advice they can do right now!`
         setBadges(prev => [...prev, '🧠 AI Analyst']);
       }
       
+      // Success haptic
+      await triggerHaptic('light');
+      
       setNotifications(prev => [{
         id: Date.now(),
         type: 'success',
@@ -93,6 +136,7 @@ Give practical advice they can do right now!`
   };
 
   const handleSettingChange = (key, value) => {
+    triggerHaptic('light');
     setSettings(prev => ({...prev, [key]: value}));
   };
 
@@ -110,37 +154,36 @@ Give practical advice they can do right now!`
     }
   };
 
+  const handleNavigation = async (screen) => {
+    await triggerHaptic('light');
+    setCurrentScreen(screen);
+  };
+
   if (!isAuthenticated) {
     return (
       <BiometricAuth 
         onAuthenticate={handleAuthenticate}
         notifications={notifications}
+        isMobile={isMobile}
       />
     );
   }
 
-  // Render content based on screen
   const renderContent = () => {
     switch (currentScreen) {
       case 'phishing':
         return <PhishingDetector />;
-      
       case 'news':
         return <SecurityNewsFeed />;
-      
       case 'passwords':
         return <PasswordManager />;
-      
       case 'breach':
         return <BreachMonitor />;
-      
       case 'learn':
         return <EducationCenter />;
-      
       case 'settingsPanel':
         return <SettingsPanel settings={settings} onSettingChange={handleSettingChange} />;
-      
-      default: // dashboard
+      default:
         return (
           <div className="max-w-6xl mx-auto p-4 space-y-6 mt-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -158,12 +201,11 @@ Give practical advice they can do right now!`
               onAnalyze={analyzeWithAI}
             />
 
-            {/* Quick Actions */}
             <div className="bg-white/80 backdrop-blur rounded-3xl p-6 shadow-lg border-2 border-purple-200">
               <h2 className="text-xl font-bold text-gray-800 mb-4">🚀 Quick Security Actions</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button
-                  onClick={() => setCurrentScreen('phishing')}
+                  onClick={() => handleNavigation('phishing')}
                   className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-2xl p-4 hover:shadow-lg transition-all text-left"
                 >
                   <Shield className="w-8 h-8 text-blue-500 mb-2" />
@@ -172,7 +214,7 @@ Give practical advice they can do right now!`
                 </button>
                 
                 <button
-                  onClick={() => setCurrentScreen('passwords')}
+                  onClick={() => handleNavigation('passwords')}
                   className="bg-gradient-to-r from-cyan-50 to-teal-50 border-2 border-cyan-200 rounded-2xl p-4 hover:shadow-lg transition-all text-left"
                 >
                   <Key className="w-8 h-8 text-cyan-500 mb-2" />
@@ -181,7 +223,7 @@ Give practical advice they can do right now!`
                 </button>
                 
                 <button
-                  onClick={() => setCurrentScreen('breach')}
+                  onClick={() => handleNavigation('breach')}
                   className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-200 rounded-2xl p-4 hover:shadow-lg transition-all text-left"
                 >
                   <Mail className="w-8 h-8 text-red-500 mb-2" />
@@ -190,7 +232,7 @@ Give practical advice they can do right now!`
                 </button>
                 
                 <button
-                  onClick={() => setCurrentScreen('news')}
+                  onClick={() => handleNavigation('news')}
                   className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-4 hover:shadow-lg transition-all text-left"
                 >
                   <Newspaper className="w-8 h-8 text-purple-500 mb-2" />
@@ -206,7 +248,6 @@ Give practical advice they can do right now!`
     }
   };
 
-  // Updated navigation
   const navItems = [
     { id: 'dashboard', icon: Home, label: 'Home' },
     { id: 'phishing', icon: Shield, label: 'Phishing' },
@@ -236,7 +277,7 @@ Give practical advice they can do right now!`
               return (
                 <button 
                   key={item.id}
-                  onClick={() => setCurrentScreen(item.id)} 
+                  onClick={() => handleNavigation(item.id)} 
                   className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all ${
                     isActive 
                       ? 'bg-purple-100 text-purple-600' 

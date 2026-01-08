@@ -1,0 +1,20 @@
+{
+  "appId": "com.example.app",
+  "appName": "Locksyra-app",
+  "webDir": "build",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "launchAutoHide": true,
+      "backgroundColor": "#8B5CF6",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "Dark",
+      "backgroundColor": "#8B5CF6"
+    }
+  }
+}

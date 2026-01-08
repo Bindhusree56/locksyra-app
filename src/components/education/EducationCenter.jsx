@@ -74,7 +74,7 @@ const EducationCenter = () => {
               <p className="text-sm text-gray-600 mt-2">We recommend checking weekly, or whenever you hear about a major data breach in the news.</p>
             </details>
             <details className="bg-white/60 rounded-xl p-4">
-              <summary className="font-semibold text-gray-800 cursor-pointer">Is my data safe with SecureU?</summary>
+              <summary className="font-semibold text-gray-800 cursor-pointer">Is my data safe with LockSyra?</summary>
               <p className="text-sm text-gray-600 mt-2">Absolutely! All data is processed locally on your device. We never store your passwords or personal information.</p>
             </details>
             <details className="bg-white/60 rounded-xl p-4">

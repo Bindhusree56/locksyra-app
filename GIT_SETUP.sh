@@ -1,4 +1,4 @@
-echo "🎯 Git Setup Script for SecureU"
+echo "🎯 Git Setup Script for Locksyra"
 echo "================================"
 echo ""
 
@@ -53,7 +53,7 @@ git add .
 # Create initial commit
 echo ""
 echo "Creating initial commit..."
-git commit -m "feat: initial SecureU application setup
+git commit -m "feat: initial LockSyra application setup
 
 - Backend API with JWT authentication
 - Frontend React application

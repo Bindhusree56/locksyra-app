@@ -42,7 +42,7 @@ const BiometricAuth = ({ onAuthenticate, notifications }) => {
             <Shield className="w-16 h-16 text-white" />
           </div>
           <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-            SecureU
+            Locksyra
           </h1>
           <p className="text-purple-600 text-lg">Your Free Security Guardian 🎓</p>
         </div>

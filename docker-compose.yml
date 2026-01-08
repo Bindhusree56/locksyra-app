@@ -4,7 +4,7 @@ services:
   # PostgreSQL Database
   database:
     image: postgres:14-alpine
-    container_name: secureu-database
+    container_name: locksyra-database
     environment:
       POSTGRES_DB: secureu_db
       POSTGRES_USER: secureu_user
@@ -20,14 +20,14 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - secureu-network
+      - locksyra-network
 
   # Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: secureu-backend
+    container_name: locksyra-backend
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 5000
@@ -46,7 +46,7 @@ services:
       - ./backend/src:/app/src
       - ./backend/logs:/app/logs
     networks:
-      - secureu-network
+      - locksyra-network
     command: npm run dev
 
   # Frontend
@@ -54,7 +54,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: secureu-frontend
+    container_name: locksyra-frontend
     environment:
       REACT_APP_API_URL: http://localhost:5000/api
       REACT_APP_ENABLE_PASSWORD_MANAGER: "false"
@@ -66,7 +66,7 @@ services:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
     networks:
-      - secureu-network
+      - locksyra-network
     command: npm start
 
 volumes:
@@ -74,5 +74,5 @@ volumes:
     driver: local
 
 networks:
-  secureu-network:
+  locksyra-network:
     driver: bridge

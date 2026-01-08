@@ -18,7 +18,7 @@ const checkEmailBreaches = async (email) => {
         {
           headers: {
             'hibp-api-key': apiKey,
-            'user-agent': 'SecureU-App'
+            'user-agent': 'LockSyra-App'
           }
         }
       );
@@ -102,7 +102,7 @@ const checkPasswordBreach = async (password) => {
       `https://api.pwnedpasswords.com/range/${prefix}`,
       {
         headers: {
-          'user-agent': 'SecureU-App'
+          'user-agent': 'LockSyra-App'
         }
       }
     );

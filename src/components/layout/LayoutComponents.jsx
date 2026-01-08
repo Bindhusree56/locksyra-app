@@ -8,7 +8,7 @@ export const Header = ({ onLogout }) => {
         <div>
           <div className="flex items-center gap-3 mb-1">
             <Shield className="w-8 h-8 text-white" />
-            <h1 className="text-3xl font-bold text-white">SecureU</h1>
+            <h1 className="text-3xl font-bold text-white">Locksyra</h1>
           </div>
           <p className="text-purple-100 text-sm">AI-Powered Protection • Free Forever</p>
         </div>

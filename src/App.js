@@ -62,7 +62,7 @@ const SecurityToolkit = () => {
             setCurrentScreen('dashboard');
           } else if (!canGoBack) {
             // Show exit confirmation
-            if (window.confirm('Exit SecureU?')) {
+            if (window.confirm('Exit LockSyra?')) {
               const { App } = require('@capacitor/app');
               App.exitApp();
             }
@@ -94,7 +94,7 @@ const SecurityToolkit = () => {
           max_tokens: 1000,
           messages: [{
             role: "user",
-            content: `You are SecureU's AI security assistant for college students. Analyze the security status for ${userEmail} and provide a brief, encouraging security tip (2-3 sentences max).
+            content: `You are LockSyra's AI security assistant for college students. Analyze the security status for ${userEmail} and provide a brief, encouraging security tip (2-3 sentences max).
 
 Focus on:
 1. A specific actionable tip for today

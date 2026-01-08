@@ -32,10 +32,10 @@ export const authenticateWithBiometric = async () => {
   
   try {
     const result = await BiometricAuth.verify({
-      reason: 'Authenticate to access SecureU',
+      reason: 'Authenticate to access LockSyra',
       title: 'Biometric Authentication',
       subtitle: 'Use your fingerprint or face',
-      description: 'SecureU uses biometric authentication for security',
+      description: 'LockSyra uses biometric authentication for security',
       negativeButtonText: 'Cancel',
       maxAttempts: 3
     });

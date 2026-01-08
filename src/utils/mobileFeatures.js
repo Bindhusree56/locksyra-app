@@ -62,29 +62,14 @@ export const triggerHaptic = async (style = 'medium') => {
 
 // Device Info
 export const getDeviceInfo = async () => {
-  if (!isNativeApp()) {
-    return {
-      platform: 'web',
-      model: 'Browser',
-      manufacturer: navigator.vendor || 'Unknown',
-      osVersion: navigator.userAgent,
-      isVirtual: false
-    };
-  }
-  
-  try {
-    const { Device } = await import('@capacitor/device');
-    const info = await Device.getInfo();
-    return info;
-  } catch (error) {
-    return {
-      platform: 'web',
-      model: 'Unknown',
-      manufacturer: 'Unknown',
-      osVersion: 'Unknown',
-      isVirtual: false
-    };
-  }
+  // Always use web-based detection for now
+  return {
+    platform: 'web',
+    model: 'Browser',
+    manufacturer: navigator.vendor || 'Unknown',
+    osVersion: navigator.userAgent,
+    isVirtual: false
+  };
 };
 
 // Network Status

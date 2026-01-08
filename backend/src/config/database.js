@@ -3,11 +3,14 @@ const { Sequelize } = require('sequelize');
 const logger = require('../utils/logger');
 
 const sequelize = new Sequelize(
-  process.env.DATABASE_URL || 
-  `postgresql://${process.env.DB_USER || 'secureu_user'}:${process.env.DB_PASSWORD || 'your_password'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'secureu_db'}`,
+  process.env.DB_NAME || 'secureu_db',
+  process.env.DB_USER || 'secureu_user',
+  process.env.DB_PASSWORD || '',
   {
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
     dialect: 'postgres',
-    logging: (msg) => logger.debug(msg),
+    logging: false, // Set to console.log to see SQL queries
     pool: {
       max: 5,
       min: 0,
@@ -18,12 +21,17 @@ const sequelize = new Sequelize(
 );
 
 // Test connection
-sequelize.authenticate()
-  .then(() => {
+const testConnection = async () => {
+  try {
+    await sequelize.authenticate();
     logger.info('✅ Database connection established successfully');
-  })
-  .catch((err) => {
+    console.log('✅ Database connected!');
+  } catch (err) {
     logger.error('❌ Unable to connect to the database:', err);
-  });
+    console.error('❌ Database connection failed:', err.message);
+  }
+};
+
+testConnection();
 
 module.exports = sequelize;

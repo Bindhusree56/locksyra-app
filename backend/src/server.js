@@ -48,7 +48,7 @@ app.use('/api/security', require('./routes/security'));
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'SecureU Backend API',
+    message: 'Locksyra Backend API',
     version: '1.0.0',
     endpoints: {
       health: '/health',
@@ -73,7 +73,7 @@ app.listen(PORT, () => {
   logger.info(`🌐 CORS enabled for: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);
   console.log(`
 ╔════════════════════════════════════════╗
-║   🛡️  SecureU Backend Server Started  ║
+║   🛡️ Locksyra Backend Server Started  ║
 ╠════════════════════════════════════════╣
 ║   Port: ${PORT}                          
 ║   Status: ✅ Running                    

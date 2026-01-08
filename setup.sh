@@ -1,4 +1,4 @@
-echo "🛡️  SecureU Setup Script"
+echo "🛡️  Locksyra Setup Script"
 echo "================================"
 echo ""
 

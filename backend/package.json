@@ -1,7 +1,7 @@
 {
-  "name": "secureu-backend",
+  "name": "Locksyra-backend",
   "version": "1.0.0",
-  "description": "SecureU Backend API with authentication and security features",
+  "description": "Locksyra Backend API with authentication and security features",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

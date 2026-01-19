@@ -4,7 +4,7 @@
 ![Version](https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 
-**🌐 Live Demo:** [https://locksyra.netlify.app](https://locksyra.netlify.app)
+**🌐 Live Demo:** [Locksyra](https://locksyra-bfb12.web.app/)
 
 > AI-Powered Security Toolkit for Students • Free Forever • No Credit Card Required
 

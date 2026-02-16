@@ -3,12 +3,16 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
+const connectDB = require('./config/database');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Connect to MongoDB
+connectDB();
 
 // Middleware
 app.use(helmet());
@@ -34,7 +38,8 @@ app.get('/health', (req, res) => {
   res.json({
     success: true,
     message: 'Server is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    database: 'MongoDB Connected'
   });
 });
 
@@ -48,8 +53,9 @@ app.use('/api/security', require('./routes/security'));
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Locksyra Backend API',
-    version: '1.0.0',
+    message: 'Locksyra Backend API - MongoDB',
+    version: '2.0.0',
+    database: 'MongoDB',
     endpoints: {
       health: '/health',
       auth: '/api/auth',
@@ -71,11 +77,13 @@ app.listen(PORT, () => {
   logger.info(`🚀 Server running on port ${PORT}`);
   logger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🌐 CORS enabled for: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);
+  logger.info(`🍃 Database: MongoDB`);
   console.log(`
 ╔════════════════════════════════════════╗
 ║   🛡️ Locksyra Backend Server Started  ║
 ╠════════════════════════════════════════╣
 ║   Port: ${PORT}                          
+║   Database: MongoDB ✅                    
 ║   Status: ✅ Running                    
 ║   Health: http://localhost:${PORT}/health
 ╚════════════════════════════════════════╝
@@ -86,7 +94,6 @@ app.listen(PORT, () => {
 process.on('unhandledRejection', (err) => {
   logger.error('Unhandled Promise Rejection:', err);
   console.error('Unhandled Promise Rejection:', err);
-  // Don't exit in development
   if (process.env.NODE_ENV === 'production') {
     process.exit(1);
   }
@@ -96,7 +103,6 @@ process.on('unhandledRejection', (err) => {
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught Exception:', err);
   console.error('Uncaught Exception:', err);
-  // Don't exit in development
   if (process.env.NODE_ENV === 'production') {
     process.exit(1);
   }

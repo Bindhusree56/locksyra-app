@@ -1,51 +1,50 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const SecurityLog = sequelize.define('SecurityLog', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
-  },
+const securityLogSchema = new mongoose.Schema({
   userId: {
-    type: DataTypes.UUID,
-    allowNull: true,
-    references: {
-      model: 'users',
-      key: 'id'
-    }
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
   },
   action: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: String,
+    required: true
   },
   actionType: {
-    type: DataTypes.STRING(50),
-    allowNull: false
+    type: String,
+    required: true,
+    enum: ['login', 'logout', 'register', 'failed_login', 'password_reset', 'password_change', 'breach_check', 'other'],
+    index: true
   },
   severity: {
-    type: DataTypes.STRING(20),
-    defaultValue: 'info'
+    type: String,
+    enum: ['info', 'warning', 'error', 'critical'],
+    default: 'info',
+    index: true
   },
   ipAddress: {
-    type: DataTypes.STRING(50),
-    allowNull: true
+    type: String,
+    maxlength: 50
   },
   userAgent: {
-    type: DataTypes.TEXT,
-    allowNull: true
+    type: String
   },
   details: {
-    type: DataTypes.JSONB,
-    allowNull: true
+    type: mongoose.Schema.Types.Mixed
   },
   success: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
+    type: Boolean,
+    default: true
   }
 }, {
-  tableName: 'security_logs',
   timestamps: true
 });
+
+// Indexes for better query performance
+securityLogSchema.index({ userId: 1, createdAt: -1 });
+securityLogSchema.index({ actionType: 1, createdAt: -1 });
+securityLogSchema.index({ severity: 1, createdAt: -1 });
+
+const SecurityLog = mongoose.model('SecurityLog', securityLogSchema);
 
 module.exports = SecurityLog;

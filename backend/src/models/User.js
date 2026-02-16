@@ -1,129 +1,160 @@
-const { DataTypes } = require('sequelize');
+const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-const sequelize = require('../config/database');
 
-const User = sequelize.define('User', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
-  },
+const userSchema = new mongoose.Schema({
   email: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: [true, 'Email is required'],
     unique: true,
-    validate: {
-      isEmail: true
-    }
+    lowercase: true,
+    trim: true,
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
   password: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: String,
+    required: [true, 'Password is required'],
+    minlength: [8, 'Password must be at least 8 characters'],
+    select: false // Don't return password by default
   },
   firstName: {
-    type: DataTypes.STRING(50),
-    allowNull: true
+    type: String,
+    trim: true,
+    maxlength: [50, 'First name cannot exceed 50 characters']
   },
   lastName: {
-    type: DataTypes.STRING(50),
-    allowNull: true
+    type: String,
+    trim: true,
+    maxlength: [50, 'Last name cannot exceed 50 characters']
   },
   isEmailVerified: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
+    type: Boolean,
+    default: false
   },
   emailVerificationToken: {
-    type: DataTypes.STRING,
-    allowNull: true
+    type: String,
+    select: false
   },
   passwordResetToken: {
-    type: DataTypes.STRING,
-    allowNull: true
+    type: String,
+    select: false
   },
   passwordResetExpires: {
-    type: DataTypes.DATE,
-    allowNull: true
+    type: Date,
+    select: false
   },
   loginAttempts: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
+    type: Number,
+    default: 0
   },
   lockUntil: {
-    type: DataTypes.DATE,
-    allowNull: true
+    type: Date
   },
   lastLogin: {
-    type: DataTypes.DATE,
-    allowNull: true
+    type: Date
   },
   refreshToken: {
-    type: DataTypes.TEXT,
-    allowNull: true
+    type: String,
+    select: false
   },
   securityScore: {
-    type: DataTypes.INTEGER,
-    defaultValue: 50
+    type: Number,
+    default: 50,
+    min: 0,
+    max: 100
   },
   twoFactorEnabled: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
+    type: Boolean,
+    default: false
   },
   twoFactorSecret: {
-    type: DataTypes.STRING,
-    allowNull: true
+    type: String,
+    select: false
   }
 }, {
-  tableName: 'users',
   timestamps: true,
-  hooks: {
-    beforeCreate: async (user) => {
-      if (user.password) {
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(user.password, salt);
-      }
-    },
-    beforeUpdate: async (user) => {
-      if (user.changed('password')) {
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(user.password, salt);
-      }
+  toJSON: {
+    transform: function(doc, ret) {
+      delete ret.password;
+      delete ret.refreshToken;
+      delete ret.passwordResetToken;
+      delete ret.emailVerificationToken;
+      delete ret.twoFactorSecret;
+      delete ret.__v;
+      return ret;
     }
   }
 });
 
-// Instance methods
-User.prototype.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
+// Index for better query performance
+userSchema.index({ email: 1 });
+userSchema.index({ lastLogin: -1 });
 
-User.prototype.isLocked = function() {
-  return !!(this.lockUntil && this.lockUntil > new Date());
-};
-
-User.prototype.incrementLoginAttempts = async function() {
-  // Lock account after 5 failed attempts for 1 hour
-  if (this.loginAttempts + 1 >= 5 && !this.isLocked()) {
-    this.lockUntil = new Date(Date.now() + 60 * 60 * 1000);
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  // Only hash if password is modified
+  if (!this.isModified('password')) {
+    return next();
   }
+
+  try {
+    // Generate salt
+    const salt = await bcrypt.genSalt(parseInt(process.env.BCRYPT_ROUNDS) || 12);
+    
+    // Hash password
+    this.password = await bcrypt.hash(this.password, salt);
+    
+    console.log('✅ Password hashed successfully');
+    next();
+  } catch (error) {
+    console.error('❌ Error hashing password:', error);
+    next(error);
+  }
+});
+
+// Method to compare passwords
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  try {
+    // this.password won't be available unless explicitly selected
+    // So we need to ensure it's loaded
+    if (!this.password) {
+      throw new Error('Password not loaded for comparison');
+    }
+    
+    const isMatch = await bcrypt.compare(candidatePassword, this.password);
+    return isMatch;
+  } catch (error) {
+    console.error('Error comparing passwords:', error);
+    return false;
+  }
+};
+
+// Check if account is locked
+userSchema.methods.isLocked = function() {
+  return !!(this.lockUntil && this.lockUntil > Date.now());
+};
+
+// Increment login attempts
+userSchema.methods.incrementLoginAttempts = async function() {
+  const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5;
+  const lockoutTime = parseInt(process.env.LOCKOUT_TIME) || 900000; // 15 minutes
+
+  // Lock account after max attempts
+  if (this.loginAttempts + 1 >= maxAttempts && !this.isLocked()) {
+    this.lockUntil = new Date(Date.now() + lockoutTime);
+  }
+  
   this.loginAttempts += 1;
   await this.save();
 };
 
-User.prototype.resetLoginAttempts = async function() {
+// Reset login attempts
+userSchema.methods.resetLoginAttempts = async function() {
   this.loginAttempts = 0;
   this.lockUntil = null;
   this.lastLogin = new Date();
   await this.save();
 };
 
-User.prototype.toJSON = function() {
-  const values = { ...this.get() };
-  delete values.password;
-  delete values.refreshToken;
-  delete values.passwordResetToken;
-  delete values.emailVerificationToken;
-  delete values.twoFactorSecret;
-  return values;
-};
+const User = mongoose.model('User', userSchema);
 
 module.exports = User;

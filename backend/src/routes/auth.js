@@ -21,12 +21,13 @@ router.post('/register',
     const { email, password, firstName, lastName } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       await logSecurityEvent(null, 'register', {
         action: 'Registration attempt with existing email',
         severity: 'warning',
-        success: false
+        success: false,
+        email
       }, req);
 
       return res.status(400).json({
@@ -35,7 +36,7 @@ router.post('/register',
       });
     }
 
-    // Create new user
+    // Create new user (password will be hashed automatically by pre-save hook)
     const user = await User.create({
       email,
       password,
@@ -45,14 +46,15 @@ router.post('/register',
     });
 
     // Generate tokens
-    const accessToken = generateAccessToken(user.id);
-    const refreshToken = generateRefreshToken(user.id);
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
 
     // Save refresh token
-    await user.update({ refreshToken });
+    user.refreshToken = refreshToken;
+    await user.save();
 
     // Log security event
-    await logSecurityEvent(user.id, 'register', {
+    await logSecurityEvent(user._id, 'register', {
       action: 'New user registered',
       severity: 'info',
       success: true
@@ -77,8 +79,8 @@ router.post('/login',
   asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    // Find user
-    const user = await User.findOne({ where: { email } });
+    // Find user and explicitly select password field
+    const user = await User.findOne({ email }).select('+password');
     
     if (!user) {
       await logSecurityEvent(null, 'failed_login', {
@@ -96,7 +98,7 @@ router.post('/login',
 
     // Check if account is locked
     if (user.isLocked()) {
-      await logSecurityEvent(user.id, 'failed_login', {
+      await logSecurityEvent(user._id, 'failed_login', {
         action: 'Login attempt on locked account',
         severity: 'warning',
         success: false
@@ -104,27 +106,28 @@ router.post('/login',
 
       return res.status(403).json({
         success: false,
-        message: 'Account temporarily locked due to multiple failed attempts'
+        message: 'Account temporarily locked due to multiple failed attempts. Try again later.'
       });
     }
 
-    // Verify password
+    // Verify password using the method we defined in the model
     const isPasswordValid = await user.comparePassword(password);
     
     if (!isPasswordValid) {
       await user.incrementLoginAttempts();
       
-      await logSecurityEvent(user.id, 'failed_login', {
+      await logSecurityEvent(user._id, 'failed_login', {
         action: 'Failed login attempt - incorrect password',
         severity: 'warning',
         success: false,
-        attempts: user.loginAttempts + 1
+        attempts: user.loginAttempts
       }, req);
 
+      const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5;
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password',
-        attemptsRemaining: Math.max(0, 5 - (user.loginAttempts + 1))
+        attemptsRemaining: Math.max(0, maxAttempts - user.loginAttempts)
       });
     }
 
@@ -132,24 +135,28 @@ router.post('/login',
     await user.resetLoginAttempts();
 
     // Generate tokens
-    const accessToken = generateAccessToken(user.id);
-    const refreshToken = generateRefreshToken(user.id);
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
 
     // Save refresh token
-    await user.update({ refreshToken });
+    user.refreshToken = refreshToken;
+    await user.save();
 
     // Log successful login
-    await logSecurityEvent(user.id, 'login', {
+    await logSecurityEvent(user._id, 'login', {
       action: 'Successful login',
       severity: 'info',
       success: true
     }, req);
 
+    // Remove password from response
+    const userResponse = user.toJSON();
+
     res.json({
       success: true,
       message: 'Login successful',
       data: {
-        user: user.toJSON(),
+        user: userResponse,
         accessToken,
         refreshToken
       }
@@ -179,11 +186,12 @@ router.post('/refresh',
     }
 
     // Generate new tokens
-    const newAccessToken = generateAccessToken(user.id);
-    const newRefreshToken = generateRefreshToken(user.id);
+    const newAccessToken = generateAccessToken(user._id);
+    const newRefreshToken = generateRefreshToken(user._id);
 
     // Update refresh token
-    await user.update({ refreshToken: newRefreshToken });
+    user.refreshToken = newRefreshToken;
+    await user.save();
 
     res.json({
       success: true,
@@ -200,7 +208,8 @@ router.post('/logout',
   authenticateToken,
   asyncHandler(async (req, res) => {
     // Clear refresh token
-    await req.user.update({ refreshToken: null });
+    req.user.refreshToken = null;
+    await req.user.save();
 
     await logSecurityEvent(req.userId, 'logout', {
       action: 'User logged out',
@@ -235,7 +244,7 @@ router.post('/forgot-password',
   asyncHandler(async (req, res) => {
     const { email } = req.body;
 
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
 
     // Always return success to prevent email enumeration
     if (!user) {
@@ -249,19 +258,17 @@ router.post('/forgot-password',
     const resetToken = generateToken();
     const resetExpires = new Date(Date.now() + 3600000); // 1 hour
 
-    await user.update({
-      passwordResetToken: resetToken,
-      passwordResetExpires: resetExpires
-    });
+    user.passwordResetToken = resetToken;
+    user.passwordResetExpires = resetExpires;
+    await user.save();
 
-    await logSecurityEvent(user.id, 'password_reset', {
+    await logSecurityEvent(user._id, 'password_reset', {
       action: 'Password reset requested',
       severity: 'info',
       success: true
     }, req);
 
     // TODO: Send email with reset link
-    // For now, just log it (in production, use email service)
     console.log(`Password reset token for ${email}: ${resetToken}`);
 
     res.json({
@@ -277,13 +284,9 @@ router.post('/reset-password',
     const { token, newPassword } = req.body;
 
     const user = await User.findOne({
-      where: {
-        passwordResetToken: token,
-        passwordResetExpires: {
-          [require('sequelize').Op.gt]: new Date()
-        }
-      }
-    });
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: Date.now() }
+    }).select('+passwordResetToken +passwordResetExpires');
 
     if (!user) {
       return res.status(400).json({
@@ -292,14 +295,13 @@ router.post('/reset-password',
       });
     }
 
-    // Update password
-    await user.update({
-      password: newPassword,
-      passwordResetToken: null,
-      passwordResetExpires: null
-    });
+    // Update password (will be hashed automatically by pre-save hook)
+    user.password = newPassword;
+    user.passwordResetToken = null;
+    user.passwordResetExpires = null;
+    await user.save();
 
-    await logSecurityEvent(user.id, 'password_change', {
+    await logSecurityEvent(user._id, 'password_change', {
       action: 'Password reset completed',
       severity: 'info',
       success: true

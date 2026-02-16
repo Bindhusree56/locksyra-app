@@ -1,37 +1,55 @@
 require('dotenv').config();
-const { Sequelize } = require('sequelize');
+const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'secureu_db',
-  process.env.DB_USER || 'secureu_user',
-  process.env.DB_PASSWORD || '',
-  {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-    dialect: 'postgres',
-    logging: false, // Set to console.log to see SQL queries
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    }
-  }
-);
-
-// Test connection
-const testConnection = async () => {
+const connectDB = async () => {
   try {
-    await sequelize.authenticate();
-    logger.info('✅ Database connection established successfully');
-    console.log('✅ Database connected!');
-  } catch (err) {
-    logger.error('❌ Unable to connect to the database:', err);
-    console.error('❌ Database connection failed:', err.message);
+    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/locksyra_db', {
+      // MongoDB connection options
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 5000,
+    });
+
+    logger.info(`✅ MongoDB Connected: ${conn.connection.host}`);
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    
+    // Handle connection events
+    mongoose.connection.on('error', (err) => {
+      logger.error('MongoDB connection error:', err);
+      console.error('MongoDB connection error:', err);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      logger.warn('MongoDB disconnected. Attempting to reconnect...');
+      console.warn('MongoDB disconnected');
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      logger.info('MongoDB reconnected');
+      console.log('MongoDB reconnected');
+    });
+
+    return conn;
+  } catch (error) {
+    logger.error('❌ MongoDB connection failed:', error);
+    console.error('❌ MongoDB connection failed:', error.message);
+    process.exit(1);
   }
 };
 
-testConnection();
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  try {
+    await mongoose.connection.close();
+    logger.info('MongoDB connection closed through app termination');
+    console.log('MongoDB connection closed');
+    process.exit(0);
+  } catch (err) {
+    logger.error('Error during MongoDB shutdown:', err);
+    process.exit(1);
+  }
+});
 
-module.exports = sequelize;
+module.exports = connectDB;

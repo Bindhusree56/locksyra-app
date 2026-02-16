@@ -1,51 +1,50 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const BreachCheck = sequelize.define('BreachCheck', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
-  },
+const breachCheckSchema = new mongoose.Schema({
   userId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'users',
-      key: 'id'
-    }
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
   },
   email: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: String,
+    required: true,
+    lowercase: true,
+    trim: true
   },
   breachCount: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
+    type: Number,
+    default: 0
   },
   breached: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
+    type: Boolean,
+    default: false
   },
   breachDetails: {
-    type: DataTypes.JSONB,
-    allowNull: true
+    type: mongoose.Schema.Types.Mixed,
+    default: []
   },
   checkType: {
-    type: DataTypes.STRING(20),
-    defaultValue: 'email'
+    type: String,
+    enum: ['email', 'password', 'url'],
+    default: 'email'
   },
   ipAddress: {
-    type: DataTypes.STRING(50),
-    allowNull: true
+    type: String,
+    maxlength: 50
   },
   userAgent: {
-    type: DataTypes.TEXT,
-    allowNull: true
+    type: String
   }
 }, {
-  tableName: 'breach_checks',
   timestamps: true
 });
+
+// Indexes for better query performance
+breachCheckSchema.index({ userId: 1, createdAt: -1 });
+breachCheckSchema.index({ email: 1 });
+
+const BreachCheck = mongoose.model('BreachCheck', breachCheckSchema);
 
 module.exports = BreachCheck;

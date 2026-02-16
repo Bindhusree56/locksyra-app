@@ -1,89 +1,84 @@
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-
 class ApiClient {
   constructor() {
-    this.accessToken = null;
-    this.refreshToken = null;
+    this.accessToken = localStorage.getItem('accessToken');
+    this.refreshToken = localStorage.getItem('refreshToken');
+    this.API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
   }
 
+  // Save tokens to localStorage
   setTokens(accessToken, refreshToken) {
     this.accessToken = accessToken;
     this.refreshToken = refreshToken;
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
   }
 
+  // Clear tokens
   clearTokens() {
     this.accessToken = null;
     this.refreshToken = null;
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
   }
 
+  // Make authenticated request
   async request(endpoint, options = {}) {
-    const url = `${API_URL}${endpoint}`;
+    const url = `${this.API_URL}${endpoint}`;
+    
     const headers = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...options.headers
     };
 
+    // Add Authorization header if token exists
     if (this.accessToken) {
       headers['Authorization'] = `Bearer ${this.accessToken}`;
     }
 
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
+      let response = await fetch(url, { ...options, headers });
 
-      // Handle token expiration
+      // If token expired, try to refresh
       if (response.status === 401) {
-        const data = await response.json();
-        if (data.code === 'TOKEN_EXPIRED' && this.refreshToken) {
-          // Try to refresh token
-          const refreshed = await this.refreshAccessToken();
-          if (refreshed) {
-            // Retry original request with new token
-            headers['Authorization'] = `Bearer ${this.accessToken}`;
-            const retryResponse = await fetch(url, {
-              ...options,
-              headers,
-            });
-            return await this.handleResponse(retryResponse);
-          }
+        const refreshed = await this.refreshToken();
+        
+        if (refreshed) {
+          // Retry with new token
+          headers['Authorization'] = `Bearer ${this.accessToken}`;
+          response = await fetch(url, { ...options, headers });
+        } else {
+          // Refresh failed, redirect to login
+          this.clearTokens();
+          window.location.href = '/login';
+          throw new Error('Session expired. Please login again.');
         }
-        throw new Error('Authentication failed');
       }
 
-      return await this.handleResponse(response);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Request failed');
+      }
+
+      return data;
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error('API Error:', error);
       throw error;
     }
   }
 
-  async handleResponse(response) {
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Request failed');
-    }
-
-    return data;
-  }
-
+  // Refresh access token
   async refreshAccessToken() {
+    if (!this.refreshToken) return false;
+
     try {
-      const response = await fetch(`${API_URL}/auth/refresh`, {
+      const response = await fetch(`${this.API_URL}/auth/refresh`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          refreshToken: this.refreshToken,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: this.refreshToken })
       });
 
-      if (!response.ok) {
-        return false;
-      }
+      if (!response.ok) return false;
 
       const data = await response.json();
       this.setTokens(data.data.accessToken, data.data.refreshToken);
@@ -94,72 +89,37 @@ class ApiClient {
     }
   }
 
-  // Auth endpoints
+  // Register
   async register(email, password, firstName, lastName) {
-    return this.request('/auth/register', {
+    const data = await this.request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, confirmPassword: password, firstName, lastName }),
+      body: JSON.stringify({ email, password, firstName, lastName })
     });
+    
+    this.setTokens(data.data.accessToken, data.data.refreshToken);
+    return data;
   }
 
+  // Login
   async login(email, password) {
-    return this.request('/auth/login', {
+    const data = await this.request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password })
     });
+    
+    this.setTokens(data.data.accessToken, data.data.refreshToken);
+    return data;
   }
 
+  // Logout
   async logout() {
-    return this.request('/auth/logout', {
-      method: 'POST',
-    });
+    await this.request('/auth/logout', { method: 'POST' });
+    this.clearTokens();
   }
 
+  // Get current user
   async getCurrentUser() {
     return this.request('/auth/me');
-  }
-
-  // Breach endpoints
-  async checkEmailBreach(email) {
-    return this.request('/breach/check-email', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-  }
-
-  async getBreachHistory(page = 1, limit = 10) {
-    return this.request(`/breach/history?page=${page}&limit=${limit}`);
-  }
-
-  async checkPasswordStrength(password) {
-    return this.request('/breach/check-password', {
-      method: 'POST',
-      body: JSON.stringify({ password }),
-    });
-  }
-
-  // Phishing endpoints
-  async checkPhishingURL(url) {
-    return this.request('/phishing/check-url', {
-      method: 'POST',
-      body: JSON.stringify({ url }),
-    });
-  }
-
-  // Security endpoints
-  async getSecurityNews() {
-    return this.request('/security/news');
-  }
-
-  async getAIAnalysis(context) {
-    return this.request('/security/ai-analysis', {
-      method: 'POST',
-      body: JSON.stringify({ context }),
-    });
-  }
-
-  async getSecurityLogs(page = 1, limit = 20) {
-    return this.request(`/security/logs?page=${page}&limit=${limit}`);
   }
 }
 

@@ -1,36 +1,39 @@
+// Unified API Client for Locksyra
+// Connects to backend at localhost:5001
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+
 class ApiClient {
   constructor() {
+    this.API_URL = API_URL;
     this.accessToken = localStorage.getItem('accessToken');
-    this.refreshToken = localStorage.getItem('refreshToken');
-    this.API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    this.refreshTokenValue = localStorage.getItem('refreshToken');
   }
 
-  // Save tokens to localStorage
+  // ─── Token Management ────────────────────────────────────────────────
   setTokens(accessToken, refreshToken) {
     this.accessToken = accessToken;
-    this.refreshToken = refreshToken;
+    this.refreshTokenValue = refreshToken;
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
   }
 
-  // Clear tokens
   clearTokens() {
     this.accessToken = null;
-    this.refreshToken = null;
+    this.refreshTokenValue = null;
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
   }
 
-  // Make authenticated request
+  // ─── Core Request Handler ─────────────────────────────────────────────
   async request(endpoint, options = {}) {
     const url = `${this.API_URL}${endpoint}`;
-    
+
     const headers = {
       'Content-Type': 'application/json',
       ...options.headers
     };
 
-    // Add Authorization header if token exists
     if (this.accessToken) {
       headers['Authorization'] = `Bearer ${this.accessToken}`;
     }
@@ -38,18 +41,15 @@ class ApiClient {
     try {
       let response = await fetch(url, { ...options, headers });
 
-      // If token expired, try to refresh
-      if (response.status === 401) {
-        const refreshed = await this.refreshToken();
-        
+      // Auto-refresh on 401
+      if (response.status === 401 && this.refreshTokenValue) {
+        const refreshed = await this.refreshAccessToken();
         if (refreshed) {
-          // Retry with new token
           headers['Authorization'] = `Bearer ${this.accessToken}`;
           response = await fetch(url, { ...options, headers });
         } else {
-          // Refresh failed, redirect to login
           this.clearTokens();
-          window.location.href = '/login';
+          window.dispatchEvent(new CustomEvent('auth:logout'));
           throw new Error('Session expired. Please login again.');
         }
       }
@@ -57,69 +57,154 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Request failed');
+        throw new Error(data.message || `Request failed: ${response.status}`);
       }
 
       return data;
     } catch (error) {
-      console.error('API Error:', error);
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error('Cannot connect to server. Make sure the backend is running on port 5001.');
+      }
       throw error;
     }
   }
 
-  // Refresh access token
+  // ─── Token Refresh ────────────────────────────────────────────────────
   async refreshAccessToken() {
-    if (!this.refreshToken) return false;
-
+    if (!this.refreshTokenValue) return false;
     try {
       const response = await fetch(`${this.API_URL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: this.refreshToken })
+        body: JSON.stringify({ refreshToken: this.refreshTokenValue })
       });
-
       if (!response.ok) return false;
-
       const data = await response.json();
       this.setTokens(data.data.accessToken, data.data.refreshToken);
       return true;
-    } catch (error) {
-      console.error('Token refresh failed:', error);
+    } catch {
       return false;
     }
   }
 
-  // Register
+  // ─── Auth Endpoints ───────────────────────────────────────────────────
   async register(email, password, firstName, lastName) {
     const data = await this.request('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, password, firstName, lastName })
     });
-    
-    this.setTokens(data.data.accessToken, data.data.refreshToken);
+    if (data.data?.accessToken) {
+      this.setTokens(data.data.accessToken, data.data.refreshToken);
+    }
     return data;
   }
 
-  // Login
   async login(email, password) {
     const data = await this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password })
     });
-    
-    this.setTokens(data.data.accessToken, data.data.refreshToken);
+    if (data.data?.accessToken) {
+      this.setTokens(data.data.accessToken, data.data.refreshToken);
+    }
     return data;
   }
 
-  // Logout
   async logout() {
-    await this.request('/auth/logout', { method: 'POST' });
+    try {
+      await this.request('/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.warn('Logout request failed, clearing tokens anyway');
+    }
     this.clearTokens();
   }
 
-  // Get current user
   async getCurrentUser() {
     return this.request('/auth/me');
+  }
+
+  // ─── Password Vault Endpoints ─────────────────────────────────────────
+  async getSavedPasswords() {
+    return this.request('/passwords');
+  }
+
+  async savePassword(website, username, password, notes = '') {
+    return this.request('/passwords', {
+      method: 'POST',
+      body: JSON.stringify({ website, username, password, notes })
+    });
+  }
+
+  async updatePassword(id, updates) {
+    return this.request(`/passwords/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
+  }
+
+  async deletePassword(id) {
+    return this.request(`/passwords/${id}`, { method: 'DELETE' });
+  }
+
+  // ─── Breach Endpoints ─────────────────────────────────────────────────
+  async checkEmailBreach(email) {
+    return this.request('/breach/check-email', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  }
+
+  async checkPasswordStrength(password) {
+    return this.request('/breach/check-password', {
+      method: 'POST',
+      body: JSON.stringify({ password })
+    });
+  }
+
+  async getBreachHistory(page = 1, limit = 10) {
+    return this.request(`/breach/history?page=${page}&limit=${limit}`);
+  }
+
+  async getBreachStats() {
+    return this.request('/breach/stats');
+  }
+
+  // ─── Phishing Endpoints ───────────────────────────────────────────────
+  async checkPhishingURL(url) {
+    return this.request('/phishing/check-url', {
+      method: 'POST',
+      body: JSON.stringify({ url })
+    });
+  }
+
+  // ─── Security Endpoints ───────────────────────────────────────────────
+  async getSecurityNews() {
+    return this.request('/security/news');
+  }
+
+  async getSecurityLogs(page = 1, limit = 20) {
+    return this.request(`/security/logs?page=${page}&limit=${limit}`);
+  }
+
+  async getSecurityDashboard() {
+    return this.request('/security/dashboard');
+  }
+
+  async getAIAnalysis(context) {
+    return this.request('/security/ai-analysis', {
+      method: 'POST',
+      body: JSON.stringify({ context })
+    });
+  }
+
+  // ─── Health Check ─────────────────────────────────────────────────────
+  async healthCheck() {
+    try {
+      const response = await fetch(`${this.API_URL.replace('/api', '')}/health`);
+      return await response.json();
+    } catch {
+      return { success: false, message: 'Backend unreachable' };
+    }
   }
 }
 

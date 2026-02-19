@@ -1,13 +1,11 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import api from '../services/api';
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
 
@@ -16,35 +14,37 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    // Check if user is already logged in
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
       const response = await api.getCurrentUser();
       setUser(response.data.user);
-    } catch (error) {
-      console.log('Not authenticated');
+    } catch {
+      api.clearTokens();
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+    // Listen for forced logout events (e.g., token expired)
+    const handleLogout = () => { setUser(null); };
+    window.addEventListener('auth:logout', handleLogout);
+    return () => window.removeEventListener('auth:logout', handleLogout);
+  }, [checkAuth]);
 
   const login = async (email, password) => {
     try {
       setError(null);
       const response = await api.login(email, password);
-      
-      // Store tokens
-      api.setTokens(response.data.accessToken, response.data.refreshToken);
-      
       setUser(response.data.user);
-      return { success: true };
-    } catch (error) {
-      setError(error.message);
-      return { success: false, error: error.message };
+      return { success: true, user: response.data.user };
+    } catch (err) {
+      const message = err.message || 'Login failed';
+      setError(message);
+      return { success: false, error: message };
     }
   };
 
@@ -52,41 +52,31 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const response = await api.register(email, password, firstName, lastName);
-      
-      // Store tokens
-      api.setTokens(response.data.accessToken, response.data.refreshToken);
-      
       setUser(response.data.user);
-      return { success: true };
-    } catch (error) {
-      setError(error.message);
-      return { success: false, error: error.message };
+      return { success: true, user: response.data.user };
+    } catch (err) {
+      const message = err.message || 'Registration failed';
+      setError(message);
+      return { success: false, error: message };
     }
   };
 
   const logout = async () => {
-    try {
-      await api.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      api.clearTokens();
-      setUser(null);
-    }
-  };
-
-  const value = {
-    user,
-    loading,
-    error,
-    login,
-    register,
-    logout,
-    isAuthenticated: !!user,
+    await api.logout();
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      error,
+      login,
+      register,
+      logout,
+      isAuthenticated: !!user,
+      setError
+    }}>
       {children}
     </AuthContext.Provider>
   );

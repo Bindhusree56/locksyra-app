@@ -9,7 +9,7 @@ const logger = require('./utils/logger');
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Connect to MongoDB
 connectDB();
@@ -18,9 +18,11 @@ connectDB();
 app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
@@ -35,11 +37,14 @@ app.use((req, res, next) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+  const mongoose = require('mongoose');
+  const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
   res.json({
     success: true,
     message: 'Server is running',
     timestamp: new Date().toISOString(),
-    database: 'MongoDB Connected'
+    database: `MongoDB ${dbStatus}`,
+    port: PORT
   });
 });
 
@@ -48,20 +53,22 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/breach', require('./routes/breach'));
 app.use('/api/phishing', require('./routes/phishing'));
 app.use('/api/security', require('./routes/security'));
+app.use('/api/passwords', require('./routes/passwords'));
 
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Locksyra Backend API - MongoDB',
-    version: '2.0.0',
+    message: 'Locksyra Backend API',
+    version: '2.1.0',
     database: 'MongoDB',
     endpoints: {
       health: '/health',
       auth: '/api/auth',
       breach: '/api/breach',
       phishing: '/api/phishing',
-      security: '/api/security'
+      security: '/api/security',
+      passwords: '/api/passwords'
     }
   });
 });
@@ -75,17 +82,14 @@ app.use(errorHandler);
 // Start server
 app.listen(PORT, () => {
   logger.info(`🚀 Server running on port ${PORT}`);
-  logger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  logger.info(`🌐 CORS enabled for: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);
-  logger.info(`🍃 Database: MongoDB`);
   console.log(`
 ╔════════════════════════════════════════╗
-║   🛡️ Locksyra Backend Server Started  ║
+║   🛡️  Locksyra Backend Server Started ║
 ╠════════════════════════════════════════╣
-║   Port: ${PORT}                          
-║   Database: MongoDB ✅                    
-║   Status: ✅ Running                    
-║   Health: http://localhost:${PORT}/health
+║   Port:     ${PORT}                        
+║   Database: MongoDB (localhost)            
+║   Status:   ✅ Running                    
+║   Health:   http://localhost:${PORT}/health
 ╚════════════════════════════════════════╝
   `);
 });
@@ -94,18 +98,12 @@ app.listen(PORT, () => {
 process.on('unhandledRejection', (err) => {
   logger.error('Unhandled Promise Rejection:', err);
   console.error('Unhandled Promise Rejection:', err);
-  if (process.env.NODE_ENV === 'production') {
-    process.exit(1);
-  }
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught Exception:', err);
   console.error('Uncaught Exception:', err);
-  if (process.env.NODE_ENV === 'production') {
-    process.exit(1);
-  }
+  process.exit(1);
 });
 
 module.exports = app;

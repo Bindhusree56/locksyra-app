@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = useCallback(async () => {
     try {
       const token = localStorage.getItem('accessToken');
-      if (!token) return;
+      if (!token) { setLoading(false); return; }
       const response = await api.getCurrentUser();
       setUser(response.data.user);
     } catch {
@@ -29,8 +29,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     checkAuth();
-    // Listen for forced logout events (e.g., token expired)
-    const handleLogout = () => { setUser(null); };
+    const handleLogout = () => setUser(null);
     window.addEventListener('auth:logout', handleLogout);
     return () => window.removeEventListener('auth:logout', handleLogout);
   }, [checkAuth]);
@@ -67,16 +66,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      loading,
-      error,
-      login,
-      register,
-      logout,
-      isAuthenticated: !!user,
-      setError
-    }}>
+    <AuthContext.Provider value={{ user, loading, error, login, register, logout, isAuthenticated: !!user, setError }}>
       {children}
     </AuthContext.Provider>
   );

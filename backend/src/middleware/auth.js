@@ -71,9 +71,9 @@ const authenticateToken = asyncHandler(async (req, res, next) => {
   try {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET, {
-      issuer: 'locksyra-backend',
-      audience: 'locksyra-app'
-    });
+  issuer: 'locksyra-api',
+  audience: 'locksyra-client'
+});
 
     // Check token type
     if (decoded.type !== 'access') {
@@ -154,10 +154,10 @@ const authenticateToken = asyncHandler(async (req, res, next) => {
 const verifyRefreshToken = async (token) => {
   try {
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET, {
-      issuer: 'locksyra-backend',
-      audience: 'locksyra-app'
-    });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+  issuer: 'locksyra-api',
+  audience: 'locksyra-client'
+});
 
     // Check token type
     if (decoded.type !== 'refresh') {

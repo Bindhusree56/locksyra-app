@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Locksyra</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- ── Auth screen ─────────────────────────────────────────────────────── -->
+  <div id="auth-screen" class="screen hidden">
+    <div class="brand">
+      <div class="brand-icon">🛡️</div>
+      <h1>Locksyra</h1>
+      <p class="subtitle">Your Security Guard</p>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="your@email.com" autocomplete="email" />
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="Your password" autocomplete="current-password" />
+    </div>
+
+    <div id="auth-error" class="error-banner hidden"></div>
+
+    <button id="login-btn" class="btn btn-primary">Sign In</button>
+    <p class="hint">Open <a href="http://localhost:3000" target="_blank">Locksyra</a> to create an account.</p>
+  </div>
+
+  <!-- ── Main screen ─────────────────────────────────────────────────────── -->
+  <div id="main-screen" class="screen hidden">
+
+    <!-- Header -->
+    <div class="header">
+      <span class="header-name" id="header-name">Hi there 👋</span>
+      <button id="logout-btn" class="btn-icon" title="Sign out">⏏</button>
+    </div>
+
+    <!-- URL safety -->
+    <div class="card" id="url-card">
+      <div class="card-title">Current Page</div>
+      <div id="url-display" class="url-text">Checking…</div>
+      <div id="safety-badge" class="badge badge-checking">⏳ Analysing</div>
+      <div id="safety-detail" class="safety-detail hidden"></div>
+    </div>
+
+    <!-- Password vault quick-look -->
+    <div class="card">
+      <div class="card-title">Password Vault</div>
+      <div id="vault-loading" class="hint">Loading…</div>
+      <div id="vault-list" class="vault-list hidden"></div>
+      <div id="vault-empty" class="hint hidden">No saved passwords yet.</div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="actions">
+      <button id="open-app-btn"  class="btn btn-secondary">Open Locksyra App ↗</button>
+      <button id="check-btn"     class="btn btn-outline">Re-check This URL</button>
+    </div>
+  </div>
+
+  <!-- ── Loading overlay ─────────────────────────────────────────────────── -->
+  <div id="loading-screen" class="screen">
+    <div class="spinner"></div>
+    <p class="hint">Loading…</p>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -59,6 +59,7 @@ convert -size 16x16   xc:purple icons/icon16.png
 ## Environment
 
 The extension targets `http://localhost:5001` for development.  
+
 For production, update the `API` constant in `background.js` and `popup.js`:
 
 ```js

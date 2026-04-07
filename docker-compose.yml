@@ -1,26 +1,24 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
+  # MongoDB Database
   database:
-    image: postgres:14-alpine
-    container_name: locksyra-database
+    image: mongo:latest
+    container_name: locksyra-mongodb
     environment:
-      POSTGRES_DB: secureu_db
-      POSTGRES_USER: secureu_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password_change_me}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password}
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - mongo_data:/data/db
+    networks:
+      - locksyra-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U secureu_user"]
+      test: ["CMD", "mongosh", "--eval", "db.runCommand({ping: 1})"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - locksyra-network
 
   # Backend API
   backend:
@@ -30,15 +28,16 @@ services:
     container_name: locksyra-backend
     environment:
       NODE_ENV: ${NODE_ENV:-development}
-      PORT: 5000
-      DATABASE_URL: postgresql://secureu_user:${DB_PASSWORD:-secure_password_change_me}@database:5432/secureu_db
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-min-32-chars}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-refresh-secret-key}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      PORT: 5001
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password}@database:27017/locksyra?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       CORS_ORIGIN: http://localhost:3000
-      IPQS_API_KEY: ${IPQS_API_KEY:-vPIy7so7AwJpfySXMfqqwExA4vbvc6fN}
+      IPQS_API_KEY: ${IPQS_API_KEY}
+      HIBP_API_KEY: ${HIBP_API_KEY}
     ports:
-      - "5000:5000"
+      - "5001:5001"
     depends_on:
       database:
         condition: service_healthy
@@ -52,25 +51,31 @@ services:
   # Frontend
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
     container_name: locksyra-frontend
     environment:
-      REACT_APP_API_URL: http://localhost:5000/api
-      REACT_APP_ENABLE_PASSWORD_MANAGER: "false"
+      REACT_APP_API_URL: http://localhost:5001/api
+      REACT_APP_FIREBASE_API_KEY: ${REACT_APP_FIREBASE_API_KEY}
+      REACT_APP_FIREBASE_AUTH_DOMAIN: ${REACT_APP_FIREBASE_AUTH_DOMAIN}
+      REACT_APP_FIREBASE_PROJECT_ID: ${REACT_APP_FIREBASE_PROJECT_ID}
+      REACT_APP_FIREBASE_STORAGE_BUCKET: ${REACT_APP_FIREBASE_STORAGE_BUCKET}
+      REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${REACT_APP_FIREBASE_MESSAGING_SENDER_ID}
+      REACT_APP_FIREBASE_APP_ID: ${REACT_APP_FIREBASE_APP_ID}
+      REACT_APP_FIREBASE_MEASUREMENT_ID: ${REACT_APP_FIREBASE_MEASUREMENT_ID}
     ports:
       - "3000:3000"
     depends_on:
       - backend
     volumes:
-      - ./frontend/src:/app/src
-      - ./frontend/public:/app/public
+      - ./src:/app/src
+      - ./public:/app/public
     networks:
       - locksyra-network
     command: npm start
 
 volumes:
-  postgres_data:
+  mongo_data:
     driver: local
 
 networks:

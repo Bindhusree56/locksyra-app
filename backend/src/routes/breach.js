@@ -4,6 +4,7 @@ const { authenticateToken, logSecurityEvent } = require('../middleware/auth');
 const { breachCheckLimiter } = require('../middleware/rateLimiter');
 const { validateBreachCheck, validatePasswordCheck } = require('../middleware/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { Parser } = require('json2csv');
 const { checkEmailBreaches, checkPasswordBreach, analyzePasswordStrength } = require('../services/breachService');
 const BreachCheck = require('../models/BreachCheck');
 
@@ -20,7 +21,7 @@ router.post('/check-email',
       
       // Log the check to database
       await BreachCheck.create({
-        userId: req.userId,
+        userId: req.user._id,
         email,
         breachCount: breaches.length,
         breached: breaches.length > 0,
@@ -31,7 +32,7 @@ router.post('/check-email',
       });
 
       // Log security event
-      await logSecurityEvent(req.userId, 'breach_check', {
+      await logSecurityEvent(req.user._id, 'breach_check', {
         action: 'Email breach check performed',
         severity: breaches.length > 0 ? 'warning' : 'info',
         success: true,
@@ -65,12 +66,12 @@ router.get('/history',
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
     const [checks, total] = await Promise.all([
-      BreachCheck.find({ userId: req.userId })
+      BreachCheck.find({ userId: req.user._id })
         .sort({ createdAt: -1 })
         .limit(parseInt(limit))
         .skip(skip)
         .lean(),
-      BreachCheck.countDocuments({ userId: req.userId })
+      BreachCheck.countDocuments({ userId: req.user._id })
     ]);
     
     res.json({
@@ -103,7 +104,7 @@ router.post('/check-password',
       ]);
 
       // Log security event (but don't store the password!)
-      await logSecurityEvent(req.userId, 'breach_check', {
+      await logSecurityEvent(req.user._id, 'breach_check', {
         action: 'Password strength check performed',
         severity: breachStatus.breached ? 'warning' : 'info',
         success: true,
@@ -159,6 +160,39 @@ router.get('/stats',
       success: true,
       data: result
     });
+  })
+);
+
+/**
+ * GET /api/breach/export
+ * Export breach history as CSV
+ */
+router.get('/export',
+  authenticateToken,
+  asyncHandler(async (req, res) => {
+    const checks = await BreachCheck.find({ userId: req.user._id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (checks.length === 0) {
+      return res.status(404).json({ success: false, message: 'No breach history found to export' });
+    }
+
+    // Format data for CSV
+    const fields = ['email', 'breachCount', 'breached', 'checkType', 'ipAddress', 'createdAt'];
+    const opts = { fields };
+    
+    try {
+      const parser = new Parser(opts);
+      const csv = parser.parse(checks);
+
+      res.header('Content-Type', 'text/csv');
+      res.attachment(`locksyra-breach-history-${new Date().toISOString().split('T')[0]}.csv`);
+      return res.send(csv);
+    } catch (err) {
+      console.error('❌ CSV export error:', err);
+      return res.status(500).json({ success: false, message: 'Failed to generate export file' });
+    }
   })
 );
 

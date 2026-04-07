@@ -167,6 +167,18 @@ class ApiClient {
 
   async getCurrentUser() { return this.request('/auth/me'); }
 
+  async deleteAccount() {
+    return this.request('/auth/me', { method: 'DELETE' });
+  }
+
+  // ── 2FA ────────────────────────────────────────────────────────────────────
+  async generate2FA() { return this.request('/auth/2fa/generate', { method: 'POST' }); }
+  async verify2FA(token) { return this.request('/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ token }) }); }
+  async disable2FA(token) { return this.request('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ token }) }); }
+  async loginVerify2FA(tempToken, token) {
+    return this.request('/auth/login/verify-2fa', { method: 'POST', body: JSON.stringify({ tempToken, token }) });
+  }
+
   // ── Password vault ─────────────────────────────────────────────────────────
 
   async getSavedPasswords()           { return this.request('/passwords'); }
@@ -186,6 +198,25 @@ class ApiClient {
   }
   async getBreachHistory(page = 1, limit = 10) {
     return this.request(`/breach/history?page=${page}&limit=${limit}`);
+  }
+
+  async exportBreachHistory() {
+    // For file downloads, we can't use the standard request() helper with JSON parsing
+    const url = `${this.API_URL}/breach/export`;
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${this.accessToken}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to export history');
+    
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `locksyra-breach-history-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
 
   // ── Phishing ───────────────────────────────────────────────────────────────

@@ -3,40 +3,7 @@
  * Catches: trailing dots, invalid chars, fake-looking TLDs, double dots, etc.
  */
 
-// Known legitimate TLDs (partial list of common ones)
-const VALID_TLDS = new Set([
-  'com','net','org','edu','gov','mil','int','io','co','ai','app','dev','tech',
-  'info','biz','me','tv','us','uk','ca','au','de','fr','jp','in','br','ru',
-  'cn','it','es','nl','se','no','dk','fi','pl','pt','mx','ar','cl','nz','sg',
-  'ae','sa','za','ng','ke','eg','tr','il','pk','bd','lk','vn','th','ph',
-  'id','my','hk','tw','kr','ua','cz','ro','hu','bg','rs','hr','sk','si',
-  'lt','lv','ee','by','kz','ge','am','az','uz','tm','kg','tj','mn',
-  'ac','ad','af','ag','al','an','ao','aq','as','at','aw','ax','ba','bb',
-  'be','bf','bh','bi','bj','bm','bn','bo','bs','bt','bv','bw','by','bz',
-  'cc','cd','cf','cg','ch','ci','ck','cm','cr','cu','cv','cx','cy',
-  'dj','dk','dm','do','dz','ec','er','et','eu','fc','fj','fk','fm','fo',
-  'ga','gd','gf','gg','gh','gi','gl','gm','gn','gp','gq','gr','gs','gt',
-  'gu','gw','gy','hn','ht','im','iq','ir','is','je','jm','jo','ki','km',
-  'kn','kp','kw','ky','la','lb','lc','li','lr','ls','lu','ly','ma','mc',
-  'md','mg','mh','mk','ml','mm','mo','mp','mq','mr','ms','mt','mu','mv',
-  'mw','mz','na','nc','ne','nf','ni','np','nr','nu','om','pa','pe','pf',
-  'pg','pm','pn','pr','ps','pw','py','qa','re','rw','sb','sc','sd',
-  'sh','sj','sl','sm','sn','so','sr','st','sv','sy','sz','tc','td','tf',
-  'tg','tj','tk','tl','to','tp','tt','tv','tz','ug','um','uy','va','vc',
-  've','vg','vi','vu','wf','ws','ye','yt','yu','yweb','shop','site',
-  'online','store','design','agency','studio','cloud','digital','media',
-  'network','services','solutions','systems','global','world','center',
-  'group','health','news','today','blog','link','click','email','mobi',
-  'name','pro','tel','travel','jobs','cat','post','xxx','asia','museum',
-  'aero','coop','edu'
-]);
 
-// Suspicious/throwaway TLDs that are almost never legitimate
-const SUSPICIOUS_TLDS = new Set([
-  'xyz','top','work','click','loan','win','bid','science','review','party',
-  'racing','cricket','accountant','date','faith','men','trade','webcam',
-  'ninja','tools','wtf','gg'
-]);
 
 export const validateEmail = (email) => {
   if (!email || typeof email !== 'string') {
@@ -67,7 +34,7 @@ export const validateEmail = (email) => {
     return { valid: false, message: 'Email cannot contain consecutive dots' };
   }
   // Only allow valid chars in local part
-  if (!/^[a-zA-Z0-9._%+\-]+$/.test(local)) {
+  if (!/^[a-zA-Z0-9._%+-]+$/.test(local)) {
     return { valid: false, message: 'Email contains invalid characters' };
   }
 
@@ -102,7 +69,7 @@ export const validateEmail = (email) => {
     if (label.startsWith('-') || label.endsWith('-')) {
       return { valid: false, message: 'Domain labels cannot start or end with a hyphen' };
     }
-    if (!/^[a-zA-Z0-9\-]+$/.test(label)) {
+    if (!/^[a-zA-Z0-9-]+$/.test(label)) {
       return { valid: false, message: 'Domain contains invalid characters' };
     }
   }
@@ -139,7 +106,7 @@ export const validateEmail = (email) => {
  */
 export const quickEmailCheck = (email) => {
   if (!email) return false;
-  const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
   if (!emailRegex.test(email)) return false;
   const local = email.split('@')[0];
   if (local.startsWith('.') || local.endsWith('.')) return false;

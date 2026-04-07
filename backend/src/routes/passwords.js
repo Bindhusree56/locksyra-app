@@ -6,6 +6,7 @@ const { protect } = require('../middleware/jwtAuth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const SavedPassword = require('../models/SavedPassword');
 const { analyzePasswordStrength } = require('../utils/passwordStrength');
+const { validatePasswordEntry } = require('../middleware/validation');
 
 /**
  * GET /api/passwords
@@ -30,13 +31,13 @@ router.get('/', protect, asyncHandler(async (req, res) => {
     };
   });
 
-  res.json({ success: true, data: { passwords: decrypted } });
+  res.json({ success: true, data: decrypted });
 }));
 
 /**
  * POST /api/passwords
  */
-router.post('/', protect, asyncHandler(async (req, res) => {
+router.post('/', protect, validatePasswordEntry, asyncHandler(async (req, res) => {
   const { website, username, password, notes } = req.body;
 
   if (!website || !username || !password) {
@@ -75,7 +76,7 @@ router.post('/', protect, asyncHandler(async (req, res) => {
 /**
  * PUT /api/passwords/:id
  */
-router.put('/:id', protect, asyncHandler(async (req, res) => {
+router.put('/:id', protect, validatePasswordEntry, asyncHandler(async (req, res) => {
   const { website, username, password, notes } = req.body;
 
   const entry = await SavedPassword.findOne({ _id: req.params.id, userId: req.userId });

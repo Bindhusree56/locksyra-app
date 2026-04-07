@@ -1,4 +1,8 @@
-
+-- ⚠️ LEGACY ARCHITECTURE — DO NOT RUN ⚠️
+-- This schema is from an older PostgreSQL-based version of Locksyra.
+-- The current application uses Node.js + Express + MongoDB (Mongoose).
+-- Refer to backend/src/models/ for the current data structures.
+-- ==============================================================
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

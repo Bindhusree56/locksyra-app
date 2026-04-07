@@ -1,27 +1,72 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Shield, Mail, Lock, User, Eye, EyeOff,
-  AlertCircle, CheckCircle, UserPlus, ArrowRight, X, Loader
+  Mail, Lock, User, Eye, EyeOff,
+  AlertCircle, CheckCircle, UserPlus, Loader,
+  ShieldCheck, Zap, Globe, Cpu, Terminal, Key
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { validateEmail } from '../../utils/emailValidator';
+import { motion, AnimatePresence, useTransform, useSpring } from 'framer-motion';
+import GlassCard from '../common/GlassCard';
+
+const FloatingAsset = ({ icon: Icon, delay = 0, x = 0, y = 0, scale = 1, opacity = 0.2, rotate = 0 }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0 }}
+      animate={{ 
+        opacity, 
+        scale,
+        x: [x - 10, x + 10, x - 10], 
+        y: [y - 15, y + 15, y - 15],
+        rotate: [rotate - 5, rotate + 5, rotate - 5]
+      }}
+      transition={{ 
+        duration: 8 + Math.random() * 4, 
+        repeat: Infinity, 
+        delay, 
+        ease: "easeInOut" 
+      }}
+      className="absolute pointer-events-none"
+      style={{ left: `${50 + x}%`, top: `${50 + y}%` }}
+    >
+      <div className="p-4 bg-primary-500/10 backdrop-blur-3xl rounded-2xl border border-primary-500/20 shadow-[0_0_30px_rgba(14,165,233,0.2)]">
+        <Icon className="w-8 h-8 text-primary-400 opacity-60" />
+      </div>
+    </motion.div>
+  );
+};
 
 const AuthPage = () => {
   const { login, register } = useAuth();
   const [mode, setMode] = useState('login');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [errorType, setErrorType] = useState('');
   const [success, setSuccess] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [serverStatus, setServerStatus] = useState(null);
   const [emailError, setEmailError] = useState('');
-  const [prefillEmail, setPrefillEmail] = useState('');
-
+  
+  const mouseX = useSpring(0, { stiffness: 50, damping: 20 });
+  const mouseY = useSpring(0, { stiffness: 50, damping: 20 });
+  
   const [form, setForm] = useState({
     email: '', password: '', confirmPassword: '', firstName: '', lastName: ''
   });
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      mouseX.set(e.clientX / window.innerWidth - 0.5);
+      mouseY.set(e.clientY / window.innerHeight - 0.5);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [mouseX, mouseY]);
+
+  // Parallax transforms
+  const p1X = useTransform(mouseX, [-0.5, 0.5], [-30, 30]);
+  const p1Y = useTransform(mouseY, [-0.5, 0.5], [-30, 30]);
+  const p2X = useTransform(mouseX, [-0.5, 0.5], [50, -50]);
+  const p2Y = useTransform(mouseY, [-0.5, 0.5], [50, -50]);
 
   // Backend health check
   useEffect(() => {
@@ -37,18 +82,10 @@ const AuthPage = () => {
     checkServer();
   }, []);
 
-  // Pre-fill email when switching modes
-  useEffect(() => {
-    if (prefillEmail && (mode === 'register' || mode === 'login')) {
-      setForm(f => ({ ...f, email: prefillEmail }));
-    }
-  }, [mode, prefillEmail]);
-
   const update = (field) => (e) => {
     const value = e.target.value;
     setForm(f => ({ ...f, [field]: value }));
-    if (error) { setError(''); setErrorType(''); }
-    // Real-time email validation
+    if (error) { setError(''); }
     if (field === 'email' && value) {
       const emailCheck = validateEmail(value);
       setEmailError(emailCheck.valid ? '' : emailCheck.message);
@@ -57,39 +94,14 @@ const AuthPage = () => {
     }
   };
 
-  const validateForm = () => {
-    if (!form.email || !form.password) return ['Email and password are required', 'generic'];
-
-    const emailCheck = validateEmail(form.email);
-    if (!emailCheck.valid) return [emailCheck.message, 'invalid_email'];
-
-    if (form.password.length < 8) return ['Password must be at least 8 characters', 'generic'];
-
-    if (mode === 'register') {
-      if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(form.password)) {
-        return ['Password must include uppercase, lowercase & a number', 'generic'];
-      }
-      if (form.password !== form.confirmPassword) {
-        return ['Passwords do not match', 'generic'];
-      }
-    }
-    return null;
-  };
-
-  const classifyError = (message = '') => {
-    const msg = message.toLowerCase();
-    if (msg.includes('user not found') || msg.includes('not found') || msg.includes('no account')) return 'not_found';
-    if (msg.includes('incorrect password') || msg.includes('wrong password') || msg.includes('invalid email or password')) return 'wrong_password';
-    if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('email_already_exists')) return 'already_exists';
-    return 'generic';
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); setErrorType(''); setSuccess('');
+    setError(''); setSuccess('');
 
-    const validation = validateForm();
-    if (validation) { setError(validation[0]); setErrorType(validation[1]); return; }
+    if (!form.email || !form.password) {
+        setError('Email and password are required');
+        return;
+    }
 
     setLoading(true);
     try {
@@ -101,30 +113,23 @@ const AuthPage = () => {
       }
 
       if (result.success) {
-        setSuccess(mode === 'login' ? '✅ Welcome back! Signing you in...' : '✅ Account created! Taking you in...');
+        setSuccess(mode === 'login' ? '✅ Connection established. Synchronizing session...' : '✅ Profile initialized. Access granted.');
       } else {
-        const type = classifyError(result.error);
-        setError(result.error || 'Authentication failed');
-        setErrorType(type);
-        if (type === 'not_found') setPrefillEmail(form.email);
+        setError(result.error || 'Identity verification failed');
       }
     } catch (err) {
-      const type = classifyError(err.message);
-      setError(err.message || 'Something went wrong. Please try again.');
-      setErrorType(type);
-      if (type === 'not_found') setPrefillEmail(form.email);
+      setError(err.message || 'Fatal communication error with security kernel.');
     } finally {
       setLoading(false);
     }
   };
 
-  const switchMode = (newMode, keepEmail = false) => {
+  const switchMode = (newMode) => {
     setMode(newMode);
-    setError(''); setErrorType(''); setSuccess(''); setEmailError('');
-    setForm(f => ({
-      email: keepEmail ? f.email : '',
-      password: '', confirmPassword: '', firstName: '', lastName: ''
-    }));
+    setError(''); setSuccess(''); setEmailError('');
+    setForm({
+      email: '', password: '', confirmPassword: '', firstName: '', lastName: ''
+    });
   };
 
   const getPasswordStrength = () => {
@@ -136,325 +141,239 @@ const AuthPage = () => {
     if (/[0-9]/.test(p)) score++;
     if (/[^a-zA-Z0-9]/.test(p)) score++;
     return [
-      { label: 'Weak', color: 'bg-red-400', width: '25%' },
-      { label: 'Fair', color: 'bg-yellow-400', width: '50%' },
-      { label: 'Good', color: 'bg-blue-400', width: '75%' },
-      { label: 'Strong', color: 'bg-green-400', width: '100%' }
-    ][score] || { label: 'Weak', color: 'bg-red-400', width: '25%' };
+      { label: 'Low Integrity', color: 'bg-rose-500', width: '25%' },
+      { label: 'Basic', color: 'bg-amber-500', width: '50%' },
+      { label: 'Optimal', color: 'bg-blue-500', width: '75%' },
+      { label: 'Fortified', color: 'bg-emerald-500', width: '100%' }
+    ][score] || { label: 'Low Integrity', color: 'bg-rose-500', width: '25%' };
   };
 
   const strength = mode === 'register' ? getPasswordStrength() : null;
 
-  const renderErrorBanner = () => {
-    if (!error) return null;
-
-    if (errorType === 'not_found') {
-      return (
-        <div className="rounded-2xl border-2 border-orange-300 bg-orange-50 overflow-hidden">
-          <div className="flex items-start gap-3 p-4">
-            <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <UserPlus className="w-5 h-5 text-orange-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-orange-800 text-sm">No account found</p>
-              <p className="text-orange-700 text-xs mt-0.5">
-                <span className="font-medium break-all">{form.email}</span> is not registered yet. Create a free account!
-              </p>
-            </div>
-            <button onClick={() => setError('')} className="text-orange-400 hover:text-orange-600 flex-shrink-0"><X className="w-4 h-4" /></button>
-          </div>
-          <div className="px-4 pb-4">
-            <button
-              onClick={() => { setPrefillEmail(form.email); switchMode('register', true); }}
-              className="w-full bg-gradient-to-r from-orange-500 to-pink-500 text-white py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
-            >
-              <UserPlus className="w-4 h-4" /> Create Account with this Email <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (errorType === 'wrong_password') {
-      return (
-        <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="font-bold text-red-800 text-sm">Incorrect password</p>
-            <p className="text-red-600 text-xs mt-0.5">The password doesn't match this account. Please try again.</p>
-          </div>
-          <button onClick={() => setError('')} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
-        </div>
-      );
-    }
-
-    if (errorType === 'already_exists') {
-      return (
-        <div className="rounded-2xl border-2 border-blue-300 bg-blue-50 overflow-hidden">
-          <div className="flex items-start gap-3 p-4">
-            <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <CheckCircle className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-blue-800 text-sm">Email already registered</p>
-              <p className="text-blue-700 text-xs mt-0.5">
-                <span className="font-medium break-all">{form.email}</span> already has an account.
-              </p>
-            </div>
-            <button onClick={() => setError('')} className="text-blue-400 hover:text-blue-600"><X className="w-4 h-4" /></button>
-          </div>
-          <div className="px-4 pb-4">
-            <button
-              onClick={() => switchMode('login', true)}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all"
-            >
-              <Lock className="w-4 h-4" /> Sign In Instead <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (errorType === 'invalid_email') {
-      return (
-        <div className="rounded-2xl border border-yellow-300 bg-yellow-50 p-3 flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-yellow-800 flex-1">{error}</p>
-          <button onClick={() => setError('')} className="text-yellow-500 hover:text-yellow-700"><X className="w-4 h-4" /></button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-3 flex items-start gap-2">
-        <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-        <p className="text-sm text-red-700 flex-1">{error}</p>
-        <button onClick={() => setError('')} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
-      </div>
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-[#020617] text-slate-100 flex overflow-hidden relative">
+      {/* Immersive Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-scanlines opacity-[0.03]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary-600/10 rounded-full blur-[140px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[140px]" />
+      </div>
 
-        {/* Logo */}
-        <div className="text-center mb-7">
-          <div className="inline-block p-5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-3 shadow-2xl">
-            <Shield className="w-14 h-14 text-white" />
-          </div>
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
-            Locksyra
-          </h1>
-          <p className="text-purple-600 text-sm">Your Free Security Guardian 🎓</p>
+      {/* Main Container */}
+      <div className="w-full h-full flex flex-col lg:flex-row p-6 md:p-12 lg:p-24 gap-12 items-center justify-center relative z-10">
+        
+        {/* LEFT SIDE: 3D Parallax Hero */}
+        <div className="hidden lg:flex flex-1 flex-col items-start justify-center relative h-full">
+           <motion.div 
+             style={{ x: p1X, y: p1Y }}
+             className="relative z-20 space-y-8"
+           >
+              <div className="relative group">
+                <div className="w-28 h-28 bg-slate-900/60 backdrop-blur-3xl rounded-[2.5rem] flex items-center justify-center p-8 border border-white/10 shadow-2xl relative overflow-hidden">
+                   <div className="absolute inset-0 bg-primary-500/10 animate-pulse" />
+                   <ShieldCheck className="w-full h-full text-primary-400 relative z-10 drop-shadow-[0_0_15px_rgba(14,165,233,0.6)]" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h1 className="text-7xl font-black leading-[0.9] text-white tracking-tighter uppercase italic">
+                   The Digital <br />
+                   <span className="text-primary-400 text-glow">Perimeter.</span>
+                </h1>
+                <p className="text-lg text-slate-500 max-w-lg leading-relaxed font-black uppercase tracking-widest opacity-80 mt-6">
+                  Elite Cloud Security & <br /> Identity Intelligence.
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                 <div className="px-6 py-3 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-3">
+                    <Zap className="w-4 h-4 text-emerald-400" />
+                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Real-Time Monitoring</span>
+                 </div>
+                 <div className="px-6 py-3 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-3">
+                    <Globe className="w-4 h-4 text-primary-400" />
+                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Global Node Network</span>
+                 </div>
+              </div>
+           </motion.div>
+
+           {/* Parallax Assets */}
+           <motion.div style={{ x: p2X, y: p2Y }} className="absolute inset-0 z-10">
+              <FloatingAsset icon={Terminal} x={-20} y={-30} scale={0.8} opacity={0.15} rotate={15} />
+              <FloatingAsset icon={Cpu} x={30} y={-20} scale={1.2} opacity={0.2} rotate={-10} />
+              <FloatingAsset icon={Key} x={-40} y={20} scale={0.9} opacity={0.1} rotate={45} />
+              <FloatingAsset icon={Globe} x={25} y={35} scale={1.5} opacity={0.05} rotate={-20} />
+              <FloatingAsset icon={Lock} x={10} y={-45} scale={0.7} opacity={0.15} rotate={10} />
+           </motion.div>
         </div>
 
-        {/* Server Status */}
-        <div className={`flex items-center justify-center gap-2 mb-4 px-3 py-2 rounded-xl text-xs font-medium ${
-          serverStatus === 'online' ? 'bg-green-50 text-green-700 border border-green-200' :
-          serverStatus === 'offline' ? 'bg-red-50 text-red-700 border border-red-200' :
-          'bg-gray-50 text-gray-400 border border-gray-200'
-        }`}>
-          <div className={`w-2 h-2 rounded-full animate-pulse ${
-            serverStatus === 'online' ? 'bg-green-500' :
-            serverStatus === 'offline' ? 'bg-red-500' : 'bg-gray-300'
-          }`} />
-          {serverStatus === 'online' ? '🟢 Backend connected — MongoDB running' :
-           serverStatus === 'offline' ? '🔴 Backend offline — run: cd backend && npm start' :
-           'Checking server connection...'}
-        </div>
-
-        {/* Tabs */}
-        <div className="flex bg-white/60 rounded-2xl p-1 mb-5 border border-purple-200 shadow-sm">
-          {[{ id: 'login', label: '🔐 Sign In' }, { id: 'register', label: '✨ Create Account' }].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => switchMode(tab.id)}
-              className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
-                mode === tab.id
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
-                  : 'text-gray-500 hover:text-purple-600'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Form Card */}
-        <div className="bg-white/90 backdrop-blur rounded-3xl p-7 shadow-2xl border border-purple-100">
-          {mode === 'register' && (
-            <div className="mb-5 text-center">
-              <h2 className="text-xl font-bold text-gray-800">Create your free account</h2>
-              <p className="text-xs text-gray-500 mt-1">All your security data — synced & encrypted</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name fields — register only */}
-            {mode === 'register' && (
-              <div className="grid grid-cols-2 gap-3">
-                {[{ field: 'firstName', placeholder: 'First name', label: 'First Name' },
-                  { field: 'lastName', placeholder: 'Last name', label: 'Last Name' }].map(({ field, placeholder, label }) => (
-                  <div key={field}>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
-                      <input
-                        type="text" value={form[field]} onChange={update(field)} placeholder={placeholder}
-                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 border-purple-100 focus:border-purple-400 outline-none text-sm bg-white"
-                      />
-                    </div>
-                  </div>
+        {/* RIGHT SIDE: Auth Form */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1, ease: "circOut" }}
+          className="w-full max-w-[520px] relative"
+        >
+          {/* Form Glow */}
+          <div className="absolute inset-0 bg-primary-600/5 blur-[80px] -z-10 rounded-full" />
+          
+          <GlassCard className="p-0 border-none shadow-[0_0_60px_rgba(0,0,0,0.5)] overflow-hidden">
+            <div className="p-10 md:p-12 space-y-10">
+              {/* Tab Navigation */}
+              <div className="flex bg-slate-950/80 p-2 rounded-[2rem] border border-white/5 shadow-inner">
+                {[{ id: 'login', label: 'Authenticate', icon: Terminal }, { id: 'register', label: 'Register', icon: UserPlus }].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => switchMode(tab.id)}
+                    className={`flex-1 py-4 rounded-[1.5rem] font-black text-[11px] uppercase tracking-[0.2em] transition-all duration-500 flex items-center justify-center gap-2.5 ${
+                      mode === tab.id
+                        ? 'bg-primary-600 text-white shadow-[0_0_20px_rgba(14,165,233,0.4)] border border-primary-500/30'
+                        : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    <tab.icon className="w-3.5 h-3.5" />
+                    {tab.label}
+                  </button>
                 ))}
               </div>
-            )}
 
-            {/* Email */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
-                <input
-                  type="email" value={form.email} onChange={update('email')}
-                  placeholder="your@email.com" required autoComplete="email"
-                  className={`w-full pl-9 pr-3 py-3 rounded-xl border-2 outline-none bg-white transition-colors ${
-                    emailError ? 'border-yellow-400 bg-yellow-50' :
-                    errorType === 'not_found' ? 'border-orange-300 bg-orange-50' :
-                    errorType === 'already_exists' ? 'border-blue-300 bg-blue-50' :
-                    'border-purple-100 focus:border-purple-400'
-                  }`}
-                />
+              {/* Server Status HUD */}
+              <div className="flex items-center justify-center gap-3">
+                 <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${
+                   serverStatus === 'online' ? 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5' : 'text-rose-400 border-rose-400/20 bg-rose-400/5'
+                 }`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${serverStatus === 'online' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400 shadow-[0_0_8px_currentColor]'}`} />
+                    SEC-SERVER: {serverStatus || 'PINGING...'}
+                 </div>
+                 <div className="px-4 py-2 rounded-full text-[9px] font-black text-primary-400 border border-primary-400/20 bg-primary-400/5 uppercase tracking-widest">
+                    ENCRYPTION: AES-256-GCM
+                 </div>
               </div>
-              {emailError && (
-                <p className="text-xs text-yellow-700 mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3 flex-shrink-0" /> {emailError}
-                </p>
-              )}
-            </div>
 
-            {/* Password */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
-                <input
-                  type={showPassword ? 'text' : 'password'} value={form.password} onChange={update('password')}
-                  placeholder={mode === 'register' ? 'Min. 8 chars, uppercase + number' : 'Your password'}
-                  required autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  className={`w-full pl-9 pr-10 py-3 rounded-xl border-2 outline-none bg-white transition-colors ${
-                    errorType === 'wrong_password' ? 'border-red-300 bg-red-50' : 'border-purple-100 focus:border-purple-400'
-                  }`}
-                />
-                <button type="button" onClick={() => setShowPassword(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {/* Strength bar */}
-              {mode === 'register' && form.password && strength && (
-                <div className="mt-2">
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={`h-full ${strength.color} transition-all duration-500`} style={{ width: strength.width }} />
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">{strength.label} password</p>
-                </div>
-              )}
-            </div>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={mode}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.4 }}
+                    className="space-y-6"
+                  >
+                    {mode === 'register' && (
+                      <div className="grid grid-cols-2 gap-4">
+                        {[{ field: 'firstName', placeholder: 'CYPHER', label: 'First Name', icon: User },
+                          { field: 'lastName', placeholder: 'VOID', label: 'Last Name', icon: User }].map(({ field, placeholder, label, icon: Icon }) => (
+                          <div key={field} className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">{label}</label>
+                            <div className="relative group">
+                              <Icon className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-primary-400 transition-colors" />
+                              <input
+                                type="text" value={form[field]} onChange={update(field)} placeholder={placeholder}
+                                className="w-full pl-14 pr-5 py-4.5 rounded-[1.5rem] border border-white/5 bg-slate-950/60 text-sm font-bold text-white focus:outline-none focus:border-primary-500/40 transition-all placeholder:text-slate-800 placeholder:italic"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
-            {/* Confirm Password */}
-            {mode === 'register' && (
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Confirm Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
-                  <input
-                    type={showConfirm ? 'text' : 'password'} value={form.confirmPassword} onChange={update('confirmPassword')}
-                    placeholder="Repeat your password" required autoComplete="new-password"
-                    className={`w-full pl-9 pr-10 py-3 rounded-xl border-2 outline-none bg-white transition-colors ${
-                      form.confirmPassword && form.password !== form.confirmPassword ? 'border-red-300 bg-red-50' :
-                      form.confirmPassword && form.password === form.confirmPassword ? 'border-green-300 bg-green-50' :
-                      'border-purple-100 focus:border-purple-400'
-                    }`}
-                  />
-                  {form.confirmPassword && form.password === form.confirmPassword
-                    ? <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
-                    : <button type="button" onClick={() => setShowConfirm(s => !s)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
-                        {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                  }
-                </div>
-                {form.confirmPassword && form.password !== form.confirmPassword && (
-                  <p className="text-xs text-red-500 mt-1">Passwords don't match</p>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Communication ID</label>
+                      <div className="relative group">
+                        <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-primary-400 transition-colors" />
+                        <input
+                          type="email" value={form.email} onChange={update('email')}
+                          placeholder="OPERATIVE@NETWORK.COM" required
+                          className="w-full pl-14 pr-5 py-5 rounded-[1.5rem] border border-white/5 bg-slate-950/60 text-sm font-bold text-white focus:outline-none focus:border-primary-500/40 transition-all placeholder:text-slate-800"
+                        />
+                      </div>
+                      {emailError && <p className="text-[10px] font-black text-rose-400 px-4 mt-1 uppercase tracking-tighter italic">{emailError}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Access Key</label>
+                      <div className="relative group">
+                        <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-primary-400 transition-colors" />
+                        <input
+                          type={showPassword ? 'text' : 'password'} value={form.password} onChange={update('password')}
+                          placeholder="••••••••••••" required
+                          className="w-full pl-14 pr-14 py-5 rounded-[1.5rem] border border-white/5 bg-slate-950/60 text-sm font-bold text-white focus:outline-none focus:border-primary-500/40 transition-all placeholder:text-slate-800"
+                        />
+                        <button type="button" onClick={() => setShowPassword(s => !s)}
+                          className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors">
+                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                      {mode === 'register' && form.password && (
+                        <div className="pt-2 px-4">
+                          <div className="h-1 bg-slate-900 rounded-full overflow-hidden">
+                            <motion.div 
+                               initial={{ width: 0 }}
+                               animate={{ width: strength?.width || '0%' }}
+                               className={`h-full ${strength?.color} shadow-[0_0_10px_currentColor]`} 
+                            />
+                          </div>
+                          <p className={`text-[9px] font-black uppercase mt-2 tracking-[0.2em] ${strength?.color?.replace('bg-', 'text-')}`}>
+                            Integrity: {strength?.label}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                    className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] font-black uppercase tracking-tighter italic flex items-center gap-3"
+                  >
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    SYSTEM ERROR: {error}
+                  </motion.div>
                 )}
+                
+                {success && (
+                   <motion.div 
+                    initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                    className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-black uppercase tracking-tighter italic flex items-center gap-3"
+                   >
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    {success}
+                  </motion.div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || serverStatus === 'offline'}
+                  className="w-full group relative overflow-hidden bg-primary-600 hover:bg-primary-500 text-white py-6 rounded-[2rem] font-black text-base transition-all active:scale-95 disabled:opacity-50 shadow-2xl shadow-primary-900/40"
+                >
+                  <span className="relative z-10 flex items-center justify-center gap-3 tracking-[0.3em] uppercase italic">
+                    {loading ? <Loader className="w-5 h-5 animate-spin" /> : 
+                      mode === 'login' ? <Terminal className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
+                    {mode === 'login' ? 'Establish Link' : 'Initialize Node'}
+                  </span>
+                </button>
+              </form>
+
+              <div className="text-center space-y-6">
+                 <button 
+                  type="button" 
+                  onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
+                  className="text-slate-500 hover:text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all group"
+                >
+                  {mode === 'login' ? "Unauthorized?" : "Credentialed?"}
+                  <span className="text-primary-400 group-hover:underline ml-2">
+                    {mode === 'login' ? 'Request Link' : 'Secure Authenticate'}
+                  </span>
+                </button>
+                <div className="flex items-center justify-center gap-2 text-[9px] text-slate-700 font-black uppercase tracking-[0.4em] pointer-events-none">
+                   <Lock className="w-3 h-3" /> Zero Knowledge Architecture Active
+                </div>
               </div>
-            )}
-
-            {/* Error Banner */}
-            {renderErrorBanner()}
-
-            {/* Success */}
-            {success && (
-              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-3">
-                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                <p className="text-sm text-green-700">{success}</p>
-              </div>
-            )}
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading || serverStatus === 'offline' || (emailError && form.email)}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-4 rounded-2xl font-bold text-base transition-all transform hover:scale-[1.02] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-3"
-            >
-              {loading ? (
-                <><Loader className="w-5 h-5 animate-spin" /> {mode === 'login' ? 'Signing in...' : 'Creating account...'}</>
-              ) : (
-                <>{mode === 'login' ? <Lock className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-                  {mode === 'login' ? 'Sign In' : 'Create Free Account'}</>
-              )}
-            </button>
-
-            {/* Mode switch hint */}
-            <p className="text-center text-xs text-gray-400 pt-1">
-              {mode === 'login' ? (
-                <>Don't have an account?{' '}
-                  <button type="button" onClick={() => switchMode('register')} className="text-purple-600 font-semibold hover:underline">
-                    Register here
-                  </button>
-                </>
-              ) : (
-                <>Already have an account?{' '}
-                  <button type="button" onClick={() => switchMode('login')} className="text-purple-600 font-semibold hover:underline">
-                    Sign in
-                  </button>
-                </>
-              )}
-            </p>
-            <p className="text-center text-xs text-gray-400">🔒 Encrypted & stored on your local MongoDB</p>
-          </form>
-        </div>
-
-        {/* Password checklist — register only */}
-        {mode === 'register' && form.password && (
-          <div className="mt-4 bg-white/70 backdrop-blur rounded-2xl p-4 border border-purple-200 text-xs">
-            <p className="font-semibold text-gray-600 mb-2">Password requirements</p>
-            <ul className="space-y-1">
-              {[
-                [form.password.length >= 8, 'At least 8 characters'],
-                [/[A-Z]/.test(form.password), 'One uppercase letter (A–Z)'],
-                [/[a-z]/.test(form.password), 'One lowercase letter (a–z)'],
-                [/[0-9]/.test(form.password), 'One number (0–9)'],
-                [/[^a-zA-Z0-9]/.test(form.password), 'Special character (!@#$…) — recommended']
-              ].map(([met, label], i) => (
-                <li key={i} className={`flex items-center gap-2 transition-colors ${met ? 'text-green-600' : 'text-gray-400'}`}>
-                  <span className="text-base leading-none">{met ? '✅' : '○'}</span> {label}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+            </div>
+          </GlassCard>
+        </motion.div>
       </div>
     </div>
   );

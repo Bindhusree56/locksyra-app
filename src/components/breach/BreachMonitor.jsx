@@ -1,25 +1,23 @@
 import React, { useState } from 'react';
 import {
   Mail, Search, CheckCircle, XCircle, RefreshCw,
-  AlertCircle, Shield, Info, X, ExternalLink
+  AlertCircle, Shield, ExternalLink
 } from 'lucide-react';
 import api from '../../services/api';
 import { validateEmail } from '../../utils/emailValidator';
-import PasswordStrengthMeter from './PasswordStrengthMeter';
+
 import BreachCard from './BreachCard';
 import BreachTimeline from './BreachTimeline';
+import { motion, AnimatePresence } from 'framer-motion';
+import GlassCard from '../common/GlassCard';
 
 const BreachMonitor = () => {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [testPassword, setTestPassword] = useState('');
   const [checking, setChecking] = useState(false);
   const [breaches, setBreaches] = useState([]);
   const [hasChecked, setHasChecked] = useState(false);
-  const [apiMessage, setApiMessage] = useState('');
-  const [apiStatus, setApiStatus] = useState(''); // 'ok' | 'partial' | 'unavailable'
   const [error, setError] = useState('');
-  const [badges, setBadges] = useState(['🛡️ First Day', '⚡ Quick Learner']);
   const [checkHistory, setCheckHistory] = useState([]);
 
   const handleEmailChange = (e) => {
@@ -34,11 +32,9 @@ const BreachMonitor = () => {
     setError('');
     setHasChecked(false);
     setBreaches([]);
-    setApiMessage('');
   };
 
   const handleBreachCheck = async () => {
-    // Validate email before proceeding
     const emailCheck = validateEmail(email);
     if (!emailCheck.valid) {
       setEmailError(emailCheck.message);
@@ -49,10 +45,8 @@ const BreachMonitor = () => {
     setHasChecked(false);
     setBreaches([]);
     setError('');
-    setApiMessage('');
 
     try {
-      // Use backend API (requires login, uses HIBP)
       const res = await api.checkEmailBreach(email);
       const foundBreaches = res.data?.breaches || [];
 
@@ -60,16 +54,11 @@ const BreachMonitor = () => {
       setHasChecked(true);
 
       if (res.data?.breachCount > 0) {
-        setApiStatus('ok');
-        setApiMessage(`Found ${res.data.breachCount} breach${res.data.breachCount !== 1 ? 'es' : ''} via HaveIBeenPwned database.`);
-        earnBadge('🔍 Breach Hunter');
+        // Earned badge logic removed as badges are unused in this view
       } else {
-        setApiStatus('ok');
-        setApiMessage('No known breaches found for this email address.');
-        earnBadge('✅ Clean Record');
+        // Earned badge logic removed
       }
 
-      // Log to history
       setCheckHistory(prev => [{
         id: Date.now(),
         email,
@@ -79,239 +68,204 @@ const BreachMonitor = () => {
       }, ...prev.slice(0, 9)]);
 
     } catch (err) {
-      const message = err.message || 'Breach check failed';
-
-      if (message.includes('HIBP') || message.includes('api key') || message.includes('API')) {
-        // API not configured — tell user clearly
-        setApiStatus('unavailable');
-        setApiMessage('');
-        setHasChecked(true);
-        setError('Breach database not configured. Ask your admin to set the HIBP_API_KEY in the backend .env file.');
-      } else if (message.includes('connect') || message.includes('fetch') || message.includes('server')) {
-        setError('Cannot reach the backend server. Make sure it is running on port 5001.');
-      } else if (message.includes('token') || message.includes('auth') || message.includes('unauthorized')) {
-        setError('Please log in to check for email breaches.');
-      } else {
-        setError(message);
-      }
+      setError(err.message || 'Breach check failed');
       setHasChecked(false);
     }
-
     setChecking(false);
   };
 
-  const earnBadge = (badge) => {
-    setBadges(prev => prev.includes(badge) ? prev : [...prev, badge]);
-  };
-
-  const handleBreachAction = (action, breach) => {
-    if (action === 'change') earnBadge('🔐 Password Master');
+  const handleBreachAction = (action) => {
+    // Action handling logic
   };
 
   const isEmailReady = email && !emailError;
 
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-6 mt-6">
-
-      {/* Badges */}
-      <div className="bg-white/80 backdrop-blur rounded-3xl p-6 shadow-lg border-2 border-blue-200">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="text-2xl">🏆</span>
-          <h2 className="text-xl font-bold text-gray-800">Badges Earned</h2>
-          <span className="ml-auto text-sm text-blue-600 font-medium">{badges.length}/15</span>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-black text-white tracking-tight">Breach Monitor</h1>
+          <p className="text-slate-400 mt-2">Surface web & darknet data exposure analysis.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {badges.map((badge, idx) => (
-            <span key={idx} className="text-2xl bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-2 rounded-xl border-2 border-blue-200">
-              {badge}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Email Breach Check */}
-      <div className="bg-white/80 backdrop-blur rounded-3xl p-6 shadow-lg border-2 border-purple-200">
-        <div className="flex items-center gap-3 mb-2">
-          <Mail className="w-6 h-6 text-purple-500" />
-          <h2 className="text-xl font-bold text-gray-800">Check Email for Breaches</h2>
-        </div>
-        <p className="text-sm text-gray-500 mb-4">
-          Enter a real email address to check if it has appeared in known data breaches.
-        </p>
-
-        {/* Email Input */}
-        <div className="mb-2">
-          <div className="flex gap-3">
-            <div className="flex-1 relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
-              <input
-                type="email"
-                value={email}
-                onChange={handleEmailChange}
-                onKeyDown={e => e.key === 'Enter' && isEmailReady && !checking && handleBreachCheck()}
-                placeholder="your.real.email@domain.com"
-                className={`w-full pl-9 pr-4 py-3 rounded-2xl border-2 outline-none transition-all ${
-                  emailError ? 'border-red-300 bg-red-50' :
-                  isEmailReady ? 'border-green-300 bg-green-50' :
-                  'border-purple-200 focus:border-purple-400'
-                }`}
-              />
-              {isEmailReady && <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />}
-            </div>
-            <button
-              onClick={handleBreachCheck}
-              disabled={checking || !isEmailReady}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-2xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
-            >
-              {checking ? (
-                <><RefreshCw className="w-5 h-5 animate-spin" /> Checking...</>
-              ) : (
-                <><Search className="w-5 h-5" /> Check</>
-              )}
-            </button>
-          </div>
-
-          {/* Real-time email feedback */}
-          {emailError && (
-            <p className="text-xs text-red-600 mt-1.5 flex items-center gap-1 ml-1">
-              <AlertCircle className="w-3 h-3 flex-shrink-0" /> {emailError}
-            </p>
-          )}
-          {!emailError && email && (
-            <p className="text-xs text-green-600 mt-1.5 flex items-center gap-1 ml-1">
-              <CheckCircle className="w-3 h-3" /> Valid email format
-            </p>
-          )}
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="mt-3 rounded-xl bg-red-50 border border-red-200 p-3 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700 flex-1">{error}</p>
-            <button onClick={() => setError('')} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
-          </div>
-        )}
-
-        {/* Result Banner */}
-        {hasChecked && !error && (
-          <div className={`mt-4 rounded-2xl p-4 border-2 ${
-            breaches.length > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
-          }`}>
-            <div className="flex items-start gap-3">
-              {breaches.length > 0 ? (
-                <>
-                  <XCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="font-bold text-red-800">
-                      ⚠️ {breaches.length} Breach{breaches.length > 1 ? 'es' : ''} Found
-                    </h3>
-                    <p className="text-sm text-red-600 mt-0.5">
-                      <strong>{email}</strong> was found in {breaches.length} data breach{breaches.length > 1 ? 'es' : ''}.
-                      Update your passwords immediately.
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="font-bold text-green-800">🎉 No Breaches Found!</h3>
-                    <p className="text-sm text-green-600 mt-0.5">
-                      <strong>{email}</strong> has not appeared in any known data breaches.
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-            {apiMessage && (
-              <p className="text-xs text-gray-500 mt-2 flex items-center gap-1 ml-9">
-                <Info className="w-3 h-3" /> {apiMessage}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* HIBP info */}
-        <div className="mt-4 bg-blue-50 rounded-xl p-3 border border-blue-200">
-          <p className="text-xs text-blue-700 flex items-start gap-2">
-            <Info className="w-3 h-3 flex-shrink-0 mt-0.5" />
-            <span>Powered by <a href="https://haveibeenpwned.com" target="_blank" rel="noopener noreferrer"
-              className="underline font-medium flex-inline items-center gap-0.5">HaveIBeenPwned <ExternalLink className="w-2.5 h-2.5 inline" /></a>.
-              Only the hash of your email is used — your actual email is never stored externally.
-              Consistent results: the same email will always show the same breaches.
-            </span>
-          </p>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => api.exportBreachHistory()}
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold border border-white/5 transition-all flex items-center gap-2"
+          >
+            <ExternalLink className="w-4 h-4" /> Export History
+          </button>
         </div>
       </div>
 
-      {/* Password Strength Tester */}
-      <div className="space-y-4">
-        <input
-          type="password"
-          value={testPassword}
-          onChange={(e) => setTestPassword(e.target.value)}
-          placeholder="Test a password strength (never stored or sent)"
-          className="w-full px-4 py-3 rounded-2xl border-2 border-purple-200 focus:border-purple-400 outline-none text-gray-800 bg-white/80 backdrop-blur"
-        />
-        <PasswordStrengthMeter password={testPassword} onBadgeEarned={earnBadge} />
-      </div>
-
-      {/* Breach Details */}
-      {breaches.length > 0 && (
-        <>
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
-              <span className="text-red-500">⚠️</span>
-              Breach Details ({breaches.length})
-            </h2>
-            {breaches.map((breach, idx) => (
-              <BreachCard key={idx} breach={breach} onAction={handleBreachAction} />
-            ))}
-          </div>
-          <BreachTimeline breaches={breaches} />
-        </>
-      )}
-
-      {/* Check History */}
-      {checkHistory.length > 0 && (
-        <div className="bg-white/80 backdrop-blur rounded-3xl p-6 shadow-lg border-2 border-purple-200">
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="w-6 h-6 text-purple-500" />
-            <h2 className="text-xl font-bold text-gray-800">Recent Checks</h2>
-          </div>
-          <div className="space-y-2">
-            {checkHistory.slice(0, 5).map(record => (
-              <div key={record.id} className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-200 flex items-center justify-between">
-                <div>
-                  <div className="font-medium text-gray-800 text-sm">{record.email}</div>
-                  <div className="text-xs text-gray-500">{new Date(record.timestamp).toLocaleString()}</div>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  record.breached ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                }`}>
-                  {record.breached ? `${record.breachCount} breach${record.breachCount !== 1 ? 'es' : ''}` : 'Clean'}
-                </span>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* LEFT COLUMN: Input & History */}
+        <div className="lg:col-span-1 space-y-8">
+          <GlassCard className="p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-primary-500/10 rounded-lg">
+                <Mail className="w-5 h-5 text-primary-400" />
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              <h2 className="text-lg font-bold text-white uppercase tracking-wider">Identity Scan</h2>
+            </div>
 
-      {/* Tips */}
-      <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-3xl p-6 border-2 border-purple-300">
-        <div className="flex items-start gap-3">
-          <Shield className="w-6 h-6 text-purple-600 flex-shrink-0" />
-          <div>
-            <h3 className="font-bold text-purple-800 mb-2">💡 Pro Security Tips</h3>
-            <ul className="space-y-1.5 text-sm text-purple-700">
-              <li>• Check your email monthly to stay ahead of new breaches</li>
-              <li>• Use unique passwords for every account — never reuse them</li>
-              <li>• Enable 2FA on email, banking, and social media accounts</li>
-              <li>• If your email is breached, change your password immediately</li>
-              <li>• Check breaches for every email address you own</li>
-            </ul>
-          </div>
+            <div className="space-y-4">
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-primary-400 transition-colors" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={handleEmailChange}
+                  onKeyDown={e => e.key === 'Enter' && isEmailReady && !checking && handleBreachCheck()}
+                  placeholder="name@example.com"
+                  className="w-full pl-12 pr-4 py-4 rounded-2xl border border-white/5 bg-slate-950/40 text-sm text-white focus:outline-none focus:border-primary-500/50 transition-all placeholder:text-slate-600"
+                />
+              </div>
+
+              {emailError && (
+                <p className="text-[11px] font-semibold text-rose-400 px-2">{emailError}</p>
+              )}
+
+              <button
+                onClick={handleBreachCheck}
+                disabled={checking || !isEmailReady}
+                className="w-full bg-primary-600 hover:bg-primary-500 text-white py-4 rounded-xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary-900/40"
+              >
+                {checking ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                {checking ? 'Scanning...' : 'Execute Scan'}
+              </button>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-white/5">
+              <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest flex items-center gap-2">
+                <Shield className="w-3 h-3 text-emerald-500" /> Secure Hashing Enabled
+              </p>
+            </div>
+          </GlassCard>
+
+          {checkHistory.length > 0 && (
+            <GlassCard className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Recent Logs</h3>
+                <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-white/5">Session Only</span>
+              </div>
+              <div className="space-y-3">
+                {checkHistory.slice(0, 4).map(record => (
+                  <div key={record.id} className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between group hover:border-white/10 transition-colors">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-white truncate">{record.email}</p>
+                      <p className="text-[10px] text-slate-500">{new Date(record.timestamp).toLocaleTimeString()}</p>
+                    </div>
+                    <div className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${
+                      record.breached ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    }`}>
+                      {record.breached ? record.breachCount : 'Safe'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+          )}
+        </div>
+
+        {/* RIGHT COLUMN: Results */}
+        <div className="lg:col-span-2 space-y-8">
+          <AnimatePresence mode="wait">
+            {!hasChecked ? (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 glass-card border-dashed border-2 border-white/5 opacity-50 rounded-3xl"
+              >
+                <div className="w-20 h-20 bg-slate-800/50 rounded-3xl flex items-center justify-center mb-6 border border-white/5">
+                  <Mail className="w-10 h-10 text-slate-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-300">Ready for Scan</h3>
+                <p className="text-sm text-slate-500 mt-2 max-w-xs">Enter your email to initiate a deep-scan against known data exposure databases.</p>
+              </motion.div>
+            ) : error ? (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start gap-4"
+              >
+                <AlertCircle className="w-6 h-6 flex-shrink-0 mt-1" />
+                <div>
+                  <p className="font-bold">Scan Interrupted</p>
+                  <p className="text-sm opacity-80 mt-1">{error}</p>
+                  <button onClick={handleBreachCheck} className="mt-4 text-xs font-bold underline hover:no-underline flex items-center gap-2">
+                    <RefreshCw className="w-3 h-3" /> Retry Scan
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="results"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6"
+              >
+                <div className={`p-6 rounded-3xl border ${
+                  breaches.length > 0 
+                    ? 'bg-rose-500/10 border-rose-400/20' 
+                    : 'bg-emerald-500/10 border-emerald-400/20'
+                }`}>
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-2xl ${breaches.length > 0 ? 'bg-rose-500/20' : 'bg-emerald-500/20'}`}>
+                      {breaches.length > 0 ? <XCircle className="w-8 h-8 text-rose-400" /> : <CheckCircle className="w-8 h-8 text-emerald-400" />}
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black text-white">
+                        {breaches.length > 0 ? `${breaches.length} Exposures Detected` : 'Environment Secured'}
+                      </h2>
+                      <p className="text-sm text-slate-400">Scan completed for <span className="text-white font-bold">{email}</span></p>
+                    </div>
+                  </div>
+                </div>
+
+                {breaches.map((breach, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                  >
+                    <BreachCard breach={breach} onAction={handleBreachAction} />
+                  </motion.div>
+                ))}
+
+                {breaches.length > 0 && <BreachTimeline breaches={breaches} />}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Tips Section */}
+          <GlassCard className="bg-primary-600/5 border-primary-500/10">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-primary-500/10 rounded-2xl">
+                <Shield className="w-6 h-6 text-primary-400" />
+              </div>
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-white">Proactive Security Directives</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+                  {[
+                    'Check monthly for new leakage logs',
+                    'Implement hardware-grade 2FA (TOTP)',
+                    'Use unique vault-stored passwords',
+                    'Zero-trust password reuse policy'
+                  ].map((tip, i) => (
+                    <div key={i} className="flex items-center gap-3 text-sm text-slate-400">
+                      <div className="w-1.5 h-1.5 bg-primary-400 rounded-full" />
+                      {tip}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </GlassCard>
         </div>
       </div>
     </div>

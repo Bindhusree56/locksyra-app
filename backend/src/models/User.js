@@ -141,6 +141,41 @@ userSchema.methods.resetLoginAttempts = async function() {
   await this.save();
 };
 
+/**
+ * 🎫 GENERATE EMAIL VERIFICATION TOKEN
+ */
+userSchema.methods.generateVerificationToken = function() {
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(32).toString('hex');
+  
+  // Hash the token and set to field
+  this.emailVerificationToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+    
+  return token;
+};
+
+/**
+ * 🔑 GENERATE PASSWORD RESET TOKEN
+ */
+userSchema.methods.generatePasswordResetToken = function() {
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(32).toString('hex');
+  
+  // Hash the token and set to field
+  this.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+    
+  // Set expiration (1 hour)
+  this.passwordResetExpires = Date.now() + 3600000;
+  
+  return token;
+};
+
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;

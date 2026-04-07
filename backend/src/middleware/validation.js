@@ -87,6 +87,31 @@ const validateUrl = [
   handleValidationErrors
 ];
 
+// Password entry validation (for vault)
+const validatePasswordEntry = [
+  body('website')
+    .trim()
+    .notEmpty()
+    .withMessage('Website/Service name is required')
+    .isLength({ max: 100 })
+    .withMessage('Website name is too long'),
+  body('username')
+    .trim()
+    .notEmpty()
+    .withMessage('Username is required')
+    .isLength({ max: 100 })
+    .withMessage('Username is too long'),
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required'),
+  body('notes')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Notes cannot exceed 500 characters'),
+  handleValidationErrors
+];
+
 module.exports = {
   validateRegistration,
   validateLogin,
@@ -94,5 +119,6 @@ module.exports = {
   validateBreachCheck,
   validatePasswordCheck,
   validateUrl,
+  validatePasswordEntry,
   handleValidationErrors
 };

@@ -21,8 +21,8 @@ const generateAccessToken = (userId) => {
     process.env.JWT_SECRET,
     { 
       expiresIn: process.env.JWT_EXPIRE || '1h',
-      issuer: 'locksyra-backend',
-      audience: 'locksyra-app'
+      issuer: 'locksyra-api',
+      audience: 'locksyra-client'
     }
   );
 };
@@ -45,8 +45,8 @@ const generateRefreshToken = (userId) => {
     process.env.JWT_REFRESH_SECRET,
     { 
       expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d',
-      issuer: 'locksyra-backend',
-      audience: 'locksyra-app'
+      issuer: 'locksyra-api',
+      audience: 'locksyra-client'
     }
   );
 };
@@ -154,10 +154,10 @@ const authenticateToken = asyncHandler(async (req, res, next) => {
 const verifyRefreshToken = async (token) => {
   try {
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
-  issuer: 'locksyra-api',
-  audience: 'locksyra-client'
-});
+    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET, {
+      issuer: 'locksyra-api',
+      audience: 'locksyra-client'
+    });
 
     // Check token type
     if (decoded.type !== 'refresh') {

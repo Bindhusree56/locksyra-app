@@ -4,7 +4,49 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        primary: {
+          50: '#f0f9ff',
+          100: '#e0f2fe',
+          200: '#bae6fd',
+          300: '#7dd3fc',
+          400: '#38bdf8',
+          500: '#0ea5e9',
+          600: '#0284c7',
+          700: '#0369a1',
+          800: '#075985',
+          900: '#0c4a6e',
+          950: '#082f49',
+        },
+        slate: {
+          850: '#1e293b',
+          950: '#020617',
+        }
+      },
+      animation: {
+        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'float': 'float 6s ease-in-out infinite',
+        'shield-pulse': 'shield-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-20px)' },
+        },
+        'shield-pulse': {
+          '0%, 100%': { opacity: 1, transform: 'scale(1)' },
+          '50%': { opacity: 0.8, transform: 'scale(1.05)' },
+        }
+      },
+      backdropBlur: {
+        xs: '2px',
+      },
+      backgroundImage: {
+        'glass-gradient': 'linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
+        'mesh-gradient': 'radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%)',
+      }
+    },
   },
   plugins: [],
 }
